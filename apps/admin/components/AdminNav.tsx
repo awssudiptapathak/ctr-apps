@@ -41,7 +41,7 @@ export default function AdminNav() {
     >
       <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0.8rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg, #f4d383, #c77921)', display: 'grid', placeItems: 'center', color: '#1d0d0f', fontWeight: 900 }}>C</div>
+          <img src="/images/icon.png" alt="CTR" style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover' }} />
           <div>
             <div style={{ fontWeight: 800, letterSpacing: 0.8, color: '#f9d27a', fontSize: 16, lineHeight: 1.1 }}>CTR-CMS</div>
             <div style={{ fontSize: 10, letterSpacing: 1, color: '#f4d7a0', textTransform: 'uppercase' }}>Admin console</div>

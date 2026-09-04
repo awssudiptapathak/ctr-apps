@@ -9,6 +9,7 @@ import nominationsRoutes from './routes/nominations.js';
 import notificationsRoutes from './routes/notifications.js';
 import adminRequestsRoutes from './routes/adminRequests.js';
 import usersRoutes from './routes/users.js';
+import dashboardRoutes from './routes/dashboard.js';
 import publicRoutes from './routes/public.js';
 
 const app = express();
@@ -29,6 +30,7 @@ app.use('/api/nominations', nominationsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin-requests', adminRequestsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api', publicRoutes);
 
 app.use((_req, res) => {
