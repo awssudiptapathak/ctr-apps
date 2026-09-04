@@ -35,10 +35,36 @@ async function markApplied(filename: string): Promise<void> {
   );
 }
 
+async function detectExistingMigrations(): Promise<void> {
+  const hasAppRole = await pool.query(
+    "SELECT 1 FROM pg_type WHERE typname = 'app_role'",
+  );
+  if (hasAppRole.rows.length > 0) {
+    await markApplied('000_custom_auth_pg.sql');
+  }
+
+  const hasAdminRequests = await pool.query(
+    "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='admin_requests'",
+  );
+  if (hasAdminRequests.rows.length > 0) {
+    await markApplied('003_admin_requests.sql');
+  }
+
+  const hasEventIndex = await pool.query(
+    "SELECT 1 FROM pg_indexes WHERE indexname = 'idx_events_year_status'",
+  );
+  if (hasEventIndex.rows.length > 0) {
+    await markApplied('002_event_program_indexes_and_validations.sql');
+  }
+}
+
 export async function runMigrations(): Promise<void> {
   const root = join(import.meta.dirname, '..', '..', '..');
 
   await ensureMigrationTable();
+  await detectExistingMigrations();
+
+  let anyRan = false;
 
   for (const file of MIGRATION_FILES) {
     if (await isApplied(file)) {
@@ -51,10 +77,15 @@ export async function runMigrations(): Promise<void> {
       await pool.query(sql);
       await markApplied(file);
       console.log(`  ${file} done.`);
+      anyRan = true;
     } catch (e: any) {
       console.error(`  ${file} failed: ${e.message}`);
       throw e;
     }
+  }
+
+  if (!anyRan) {
+    console.log('All migrations already applied.');
   }
 
   const profileCount = await pool.query('SELECT count(*) FROM profiles');
