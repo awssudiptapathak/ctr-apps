@@ -12,7 +12,7 @@ services:
   - type: web
     name: ctr-cms-api
     runtime: docker
-    repo: https://github.com/USER/ctr-apps   # <-- replace with your repo URL
+    repo: https://github.com/awssudiptapathak/ctr-apps.git
     dockerfilePath: ./Dockerfile
     plan: free
     envVars:
@@ -65,7 +65,7 @@ services:
   - type: web
     name: ctr-cms-admin
     runtime: docker
-    repo: https://github.com/USER/ctr-apps   # <-- replace with your repo URL
+    repo: https://github.com/awssudiptapathak/ctr-apps.git
     dockerfilePath: ./Dockerfile.admin
     plan: free
     buildCommand: echo "using Dockerfile.admin"
