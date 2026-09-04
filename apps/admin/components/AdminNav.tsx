@@ -7,6 +7,7 @@ import { clearAdminAuth, getAdminUser } from '@/lib/api';
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/events', label: 'Events' },
+  { href: '/nominations', label: 'Nominations' },
   { href: '/schedule', label: 'Schedule' },
   { href: '/participants', label: 'Participants' },
   { href: '/notifications', label: 'Notifications' },

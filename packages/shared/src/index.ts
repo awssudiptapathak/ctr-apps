@@ -178,7 +178,7 @@ export function isDuplicateActiveNomination(status: string): boolean {
 }
 
 export function isNominationWindowOpen(
-  program: Pick<ProgramRecord, 'status' | 'nominationOpenAt' | 'nominationCloseAt'>,
+  program: Pick<ProgramRecord, 'nominationOpenAt' | 'nominationCloseAt'> & { status: string },
   at: Date = new Date(),
 ): boolean {
   if (program.status !== 'PUBLISHED') {
@@ -194,6 +194,47 @@ export function isNominationWindowOpen(
   const currentTime = at.getTime();
 
   return currentTime >= openAt && currentTime <= closeAt;
+}
+
+export type NominationSubmitCheck =
+  | { ok: true }
+  | { ok: false; reason: 'NOT_PUBLISHED' | 'WINDOW_CLOSED' | 'ALREADY_NOMINATED' };
+
+export interface NominationEligibilityProgram {
+  id: string;
+  status: string;
+  nominationOpenAt: string | null;
+  nominationCloseAt: string | null;
+}
+
+export interface NominationEligibilityInput {
+  program: NominationEligibilityProgram;
+  existingNominations: Array<{ programId: string; status: string }>;
+  at?: Date;
+}
+
+export function checkNominationEligibility({
+  program,
+  existingNominations,
+  at = new Date(),
+}: NominationEligibilityInput): NominationSubmitCheck {
+  if (program.status !== 'PUBLISHED') {
+    return { ok: false, reason: 'NOT_PUBLISHED' };
+  }
+
+  if (!isNominationWindowOpen(program, at)) {
+    return { ok: false, reason: 'WINDOW_CLOSED' };
+  }
+
+  const alreadyNominated = existingNominations.some(
+    (nomination) =>
+      nomination.programId === program.id && isDuplicateActiveNomination(nomination.status),
+  );
+  if (alreadyNominated) {
+    return { ok: false, reason: 'ALREADY_NOMINATED' };
+  }
+
+  return { ok: true };
 }
 
 export function isValidSlotRange(startAt: string, endAt: string): boolean {

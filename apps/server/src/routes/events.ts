@@ -77,6 +77,14 @@ router.put('/:id', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req,
 });
 
 router.delete('/:id', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
+  const existing = await queryOne<any>('SELECT id FROM public.events WHERE id = $1', [req.params.id]);
+  if (!existing) return res.status(404).json({ error: 'Event not found' });
+
+  const programs = await queryOne<any>('SELECT id FROM public.programs WHERE event_id = $1 LIMIT 1', [req.params.id]);
+  if (programs) {
+    return res.status(409).json({ error: 'Cannot delete this event while it has associated programs. Remove its programs first.' });
+  }
+
   await query('DELETE FROM public.events WHERE id = $1', [req.params.id]);
   return res.status(204).end();
 });

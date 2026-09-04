@@ -32,3 +32,13 @@ export interface AuthUser {
   status: string;
   onboardingCompleted: boolean;
 }
+
+export interface Nomination {
+  id: string;
+  programId: string;
+  userId: string;
+  participantName: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}

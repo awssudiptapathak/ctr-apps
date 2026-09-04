@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query, queryOne } from '../db.js';
 import { requireAuth, requireRole, type AuthedRequest } from '../middleware.js';
+import { checkNominationEligibility } from '@ctr-cms/shared';
 
 const router = Router();
 
@@ -33,6 +34,36 @@ router.post('/', requireAuth, async (req: AuthedRequest, res) => {
   const { programId, participantName } = req.body || {};
   if (!programId || !participantName) {
     return res.status(400).json({ error: 'programId and participantName are required' });
+  }
+
+  const program = await queryOne<any>('SELECT * FROM public.programs WHERE id = $1', [programId]);
+  if (!program) {
+    return res.status(404).json({ error: 'Program not found' });
+  }
+
+  const existingRows = await query<any>(
+    'SELECT id, program_id, status FROM public.nominations WHERE user_id = $1',
+    [req.userId],
+  );
+
+  const eligibility = checkNominationEligibility({
+    program: {
+      id: program.id,
+      status: program.status,
+      nominationOpenAt: program.nomination_open_at,
+      nominationCloseAt: program.nomination_close_at,
+    },
+    existingNominations: existingRows.map((row: any) => ({ programId: row.program_id, status: row.status })),
+  });
+
+  if (!eligibility.ok) {
+    const message =
+      eligibility.reason === 'NOT_PUBLISHED'
+        ? 'Nominations are not open for this program.'
+        : eligibility.reason === 'WINDOW_CLOSED'
+          ? 'The nomination window for this program is closed.'
+          : 'You already have an active nomination for this program.';
+    return res.status(409).json({ error: message });
   }
 
   const row = await queryOne<any>(
