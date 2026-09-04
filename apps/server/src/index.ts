@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { config } from './config.js';
+import { runMigrations } from './migrate.js';
 import authRoutes from './routes/auth.js';
 import eventsRoutes from './routes/events.js';
 import programsRoutes from './routes/programs.js';
@@ -32,6 +33,11 @@ app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-app.listen(config.port, () => {
+app.listen(config.port, async () => {
   console.log(`CTR-CMS API listening on http://localhost:${config.port}`);
+  try {
+    await runMigrations();
+  } catch (e: any) {
+    console.error('Migration error:', e.message);
+  }
 });
