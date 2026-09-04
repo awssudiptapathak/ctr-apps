@@ -11,6 +11,7 @@ RUN npm ci --workspaces --include-workspace-root
 FROM base AS runtime
 COPY packages packages
 COPY apps apps
+COPY supabase supabase
 WORKDIR /app/apps/server
 ENV NODE_ENV=production
 EXPOSE 4200
