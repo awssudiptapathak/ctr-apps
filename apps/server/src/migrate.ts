@@ -10,30 +10,51 @@ const MIGRATION_FILES = [
 
 const SEED_FILE = 'seed.sql';
 
-async function tableExists(name: string): Promise<boolean> {
+async function ensureMigrationTable(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public._schema_migrations (
+      id SERIAL PRIMARY KEY,
+      filename TEXT UNIQUE NOT NULL,
+      applied_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+}
+
+async function isApplied(filename: string): Promise<boolean> {
   const result = await pool.query(
-    "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=$1",
-    [name],
+    'SELECT 1 FROM public._schema_migrations WHERE filename = $1',
+    [filename],
   );
   return result.rows.length > 0;
 }
 
+async function markApplied(filename: string): Promise<void> {
+  await pool.query(
+    'INSERT INTO public._schema_migrations (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING',
+    [filename],
+  );
+}
+
 export async function runMigrations(): Promise<void> {
   const root = join(import.meta.dirname, '..', '..', '..');
-  const hasProfiles = await tableExists('profiles');
 
-  if (!hasProfiles) {
-    console.log('Database not initialized — running migrations...');
+  await ensureMigrationTable();
 
-    for (const file of MIGRATION_FILES) {
-      const sql = readFileSync(join(root, 'supabase', 'migrations', file), 'utf8').replace(/^\uFEFF/, '');
-      console.log(`  Running ${file}...`);
-      await pool.query(sql);
+  for (const file of MIGRATION_FILES) {
+    if (await isApplied(file)) {
+      console.log(`  ${file} already applied — skipping.`);
+      continue;
     }
-
-    console.log('Migrations complete.');
-  } else {
-    console.log('Tables already exist — skipping migrations.');
+    const sql = readFileSync(join(root, 'supabase', 'migrations', file), 'utf8').replace(/^\uFEFF/, '');
+    console.log(`  Running ${file}...`);
+    try {
+      await pool.query(sql);
+      await markApplied(file);
+      console.log(`  ${file} done.`);
+    } catch (e: any) {
+      console.error(`  ${file} failed: ${e.message}`);
+      throw e;
+    }
   }
 
   const profileCount = await pool.query('SELECT count(*) FROM profiles');
