@@ -3,6 +3,17 @@ import { queryOne, query } from '../db.js';
 import { hashPassword, verifyPassword, signToken, type AuthUser } from '../auth.js';
 import { requireAuth, type AuthedRequest } from '../middleware.js';
 import { isValidPhoneNumber } from '@ctr-cms/shared';
+import {
+  generateOtpCode,
+  generateOtpSalt,
+  hashOtpCode,
+  verifyOtpHash,
+  isOtpUsable,
+  canResendOtp,
+  OTP_TTL_MS,
+  OTP_MAX_ATTEMPTS,
+  OTP_RESEND_COOLDOWN_MS,
+} from '../otp.js';
 
 const router = Router();
 
@@ -91,6 +102,105 @@ router.get('/profiles', requireAuth, async (_req: AuthedRequest, res) => {
     'SELECT id, full_name, phone, email, flat_no, role, status FROM public.profiles ORDER BY created_at DESC',
   );
   return res.json({ users: rows.map(toAuthUser) });
+});
+
+async function recordOtpDelivery(phone: string, code: string): Promise<void> {
+  const idempotencyKey = `otp:${phone}:${Date.now()}`;
+  await query(
+    `INSERT INTO public.whatsapp_messages (provider, idempotency_key, status, error)
+     VALUES ('mock', $1, 'SENT', $2)`,
+    [idempotencyKey, `OTP ${code} for ${phone} (mock provider)`],
+  ).catch(() => {});
+}
+
+router.post('/otp/request', async (req, res) => {
+  const { phone, purpose } = req.body || {};
+  if (!phone || !isValidPhoneNumber(phone)) {
+    return res.status(400).json({ error: 'Enter a valid mobile number in E.164 format.' });
+  }
+  const otpPurpose = purpose === 'verify_phone' ? 'verify_phone' : 'password_reset';
+
+  if (otpPurpose === 'password_reset') {
+    const exists = await queryOne<any>('SELECT id FROM public.profiles WHERE phone = $1', [phone]);
+    if (!exists) {
+      return res.status(404).json({ error: 'No account found for this mobile number.' });
+    }
+  } else {
+    const exists = await queryOne<any>('SELECT id FROM public.profiles WHERE phone = $1', [phone]);
+    if (exists) {
+      return res.status(409).json({ error: 'A profile already exists for this mobile number.' });
+    }
+  }
+
+  const last = await queryOne<any>(
+    `SELECT created_at FROM public.otp_codes WHERE phone = $1 AND purpose = $2 AND verified_at IS NULL
+     ORDER BY created_at DESC LIMIT 1`,
+    [phone, otpPurpose],
+  );
+  if (!canResendOtp(last?.created_at ?? null)) {
+    return res.status(429).json({
+      error: `Please wait before requesting another code (${OTP_RESEND_COOLDOWN_MS / 1000}s).`,
+    });
+  }
+
+  const code = generateOtpCode();
+  const salt = generateOtpSalt();
+  const codeHash = hashOtpCode(code, salt);
+  const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+
+  await query(
+    `INSERT INTO public.otp_codes (phone, purpose, code_hash, expires_at, max_attempts)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [phone, otpPurpose, `${salt}:${codeHash}`, expiresAt, OTP_MAX_ATTEMPTS],
+  );
+
+  await recordOtpDelivery(phone, code);
+
+  return res.json({
+    ok: true,
+    expiresIn: Math.floor(OTP_TTL_MS / 1000),
+    devOtp: process.env.NODE_ENV === 'production' ? undefined : code,
+  });
+});
+
+router.post('/otp/verify', async (req, res) => {
+  const { phone, purpose, code } = req.body || {};
+  if (!phone || !code || !isValidPhoneNumber(phone)) {
+    return res.status(400).json({ error: 'Phone and OTP code are required.' });
+  }
+  const otpPurpose = purpose === 'verify_phone' ? 'verify_phone' : 'password_reset';
+
+  const record = await queryOne<any>(
+    `SELECT * FROM public.otp_codes
+     WHERE phone = $1 AND purpose = $2 AND verified_at IS NULL
+     ORDER BY created_at DESC LIMIT 1`,
+    [phone, otpPurpose],
+  );
+  if (!record) {
+    return res.status(404).json({ error: 'No active OTP request found. Request a new code.' });
+  }
+
+  if (!isOtpUsable(record.expires_at, record.attempts, record.max_attempts)) {
+    await query('UPDATE public.otp_codes SET attempts = attempts + 1 WHERE id = $1', [record.id]).catch(() => {});
+    return res.status(410).json({ error: 'This code has expired or too many attempts. Request a new code.' });
+  }
+
+  const [salt, expected] = String(record.code_hash).split(':');
+  if (!verifyOtpHash(code, salt, expected)) {
+    const nextAttempts = record.attempts + 1;
+    await query('UPDATE public.otp_codes SET attempts = $2 WHERE id = $1', [record.id, nextAttempts]);
+    if (nextAttempts >= record.max_attempts) {
+      return res.status(410).json({ error: 'Too many attempts. Request a new code.' });
+    }
+    return res.status(401).json({ error: 'Invalid OTP code.' });
+  }
+
+  await query(
+    "UPDATE public.otp_codes SET verified_at = NOW(), attempts = attempts + 1 WHERE id = $1 AND verified_at IS NULL",
+    [record.id],
+  );
+
+  return res.json({ ok: true, purpose: otpPurpose });
 });
 
 export default router;

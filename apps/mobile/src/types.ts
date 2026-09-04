@@ -33,6 +33,16 @@ export interface AuthUser {
   onboardingCompleted: boolean;
 }
 
+export interface AllocatedSlot {
+  id: string;
+  programId: string;
+  nominationId: string;
+  startAt: string;
+  endAt: string;
+  venue: string;
+  status: string;
+}
+
 export interface Nomination {
   id: string;
   programId: string;
@@ -41,4 +51,5 @@ export interface Nomination {
   status: string;
   createdAt: string;
   updatedAt: string;
+  allocatedSlot: AllocatedSlot | null;
 }

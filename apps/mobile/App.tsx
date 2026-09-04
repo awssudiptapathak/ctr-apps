@@ -206,7 +206,7 @@ export default function App() {
           <View style={styles.statsRow}>
             <View style={styles.statBox}><Text style={styles.statValue}>{String(events.length).padStart(2, '0')}</Text><Text style={styles.statLabel}>Events</Text></View>
             <View style={styles.statBox}><Text style={styles.statValue}>{String(activeNominationCount).padStart(2, '0')}</Text><Text style={styles.statLabel}>Nominations</Text></View>
-            <View style={styles.statBox}><Text style={styles.statValue}>00</Text><Text style={styles.statLabel}>Slots</Text></View>
+            <View style={styles.statBox}><Text style={styles.statValue}>{String(programs.filter((p) => p.status === 'PUBLISHED').length).padStart(2, '0')}</Text><Text style={styles.statLabel}>Programs</Text></View>
           </View>
 
           <Text style={styles.sectionLabel}>Upcoming Cultural Events</Text>
@@ -262,7 +262,11 @@ export default function App() {
                     <View key={program.id} style={styles.programRow}>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.programText}>• {program.name}</Text>
-                        <Text style={styles.metaText}>{program.maxParticipants} slots</Text>
+                        <Text style={styles.metaText}>
+                          {program.event
+                            ? `${program.event.title} • ${new Date(program.event.startAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} • ${new Date(program.event.startAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`
+                            : ''}
+                        </Text>
                       </View>
                       <Pressable
                         onPress={() => {
@@ -314,11 +318,18 @@ export default function App() {
             ) : (
               nominations.map((nomination) => {
                 const program = programs.find((p) => p.id === nomination.programId);
+                const slot = nomination.allocatedSlot;
                 return (
                   <View key={nomination.id} style={styles.programRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.programText}>• {program?.name ?? nomination.programId}</Text>
                       <Text style={styles.metaText}>{nomination.participantName}</Text>
+                      {slot ? (
+                        <Text style={styles.metaText}>
+                          {new Date(slot.startAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                          {slot.venue ? ` • ${slot.venue}` : ''}
+                        </Text>
+                      ) : null}
                     </View>
                     <Text style={styles.tag}>{nomination.status}</Text>
                   </View>

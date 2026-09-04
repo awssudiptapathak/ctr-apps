@@ -12,7 +12,9 @@ INSERT INTO public.profiles (id, full_name, phone, email, flat_no, role, status,
 VALUES
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'System Admin', '+919999999999', 'admin@clubtown.com', 'A-101', 'SUPER_ADMIN', 'ACTIVE', true, '$2a$10$DxWtISxoyVf/mxSbFNFhFOyVzVNh3pgUNZ5HzHOaifNN8MX3m5pIK'),
   -- Welcome@123 (bcrypt)
-  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'Aarav Sharma', '+919876543210', 'aarav@clubtown.com', 'B-204', 'USER', 'ACTIVE', true, '$2a$10$V/QldN.zWdD7ngEDxWV7GuwJVD2HcUVuvBgluZbEj9keCRqGgZlUq')
+  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'Aarav Sharma', '+919876543210', 'aarav@clubtown.com', 'B-204', 'USER', 'ACTIVE', true, '$2a$10$V/QldN.zWdD7ngEDxWV7GuwJVD2HcUVuvBgluZbEj9keCRqGgZlUq'),
+  -- Test@123 (bcrypt)
+  ('cccccccc-cccc-4ccc-8ccc-cccccccccccc', 'Sudipta Pathak', '+918777742683', 'sudipta@clubtown.com', 'B-101', 'USER', 'ACTIVE', true, '$2a$10$vjsdh1C3dYnVPVBnHU/kW.PJFa1BVY8XLYcH.geYPa4aNe4hzdF2q')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.events (id, year, title, description, venue, start_at, end_at, status, publish_at)

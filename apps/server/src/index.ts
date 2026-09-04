@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.js';
 import eventsRoutes from './routes/events.js';
 import programsRoutes from './routes/programs.js';
 import nominationsRoutes from './routes/nominations.js';
+import notificationsRoutes from './routes/notifications.js';
 import publicRoutes from './routes/public.js';
 
 const app = express();
@@ -15,6 +16,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/programs', programsRoutes);
 app.use('/api/nominations', nominationsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 app.use('/api', publicRoutes);
 
 app.use((_req, res) => {
