@@ -28,8 +28,8 @@ const eventThumbnails = [
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
-  const [phone, setPhone] = useState('+919876543210');
-  const [password, setPassword] = useState('Welcome@123');
+  const [phone, setPhone] = useState('+919883614680');
+  const [password, setPassword] = useState('Admin@123');
   const [otp, setOtp] = useState('123456');
   const [newPassword, setNewPassword] = useState('');
   const [devOtp, setDevOtp] = useState('');

@@ -10,7 +10,7 @@ ON CONFLICT (key) DO NOTHING;
 -- password_hash below: Admin@123 (bcrypt)
 INSERT INTO public.profiles (id, full_name, phone, email, flat_no, role, status, onboarding_completed, password_hash)
 VALUES
-  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'System Admin', '+919999999999', 'admin@clubtown.com', 'A-101', 'SUPER_ADMIN', 'ACTIVE', true, '$2a$10$DxWtISxoyVf/mxSbFNFhFOyVzVNh3pgUNZ5HzHOaifNN8MX3m5pIK'),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Sudipta Pathak', '+919883614680', 'sudip241281@gmail.com', 'A-101', 'SUPER_ADMIN', 'ACTIVE', true, '$2a$10$DxWtISxoyVf/mxSbFNFhFOyVzVNh3pgUNZ5HzHOaifNN8MX3m5pIK'),
   -- Welcome@123 (bcrypt)
   ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'Jhimli Pathak', '+919874229187', 'jhimlig@gmail.com', 'B-204', 'USER', 'ACTIVE', true, '$2a$10$V/QldN.zWdD7ngEDxWV7GuwJVD2HcUVuvBgluZbEj9keCRqGgZlUq'),
   -- Test@123 (bcrypt)
