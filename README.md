@@ -71,7 +71,12 @@ The initial migration creates the foundation tables required by the product spec
    ```bash
    npm run mobile
    ```
-4. Apply the Supabase migration locally or in a Supabase project:
+4. Build an Android APK for the Expo mobile app:
+   ```bash
+   npm run mobile:apk
+   ```
+   This uses the Expo EAS preview profile configured in `apps/mobile/eas.json` and produces a signed Android APK build.
+5. Apply the Supabase migration locally or in a Supabase project:
    ```bash
    supabase db push
    ```

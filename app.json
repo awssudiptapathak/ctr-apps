@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "30bc627e-544b-47b0-983a-d25750f50050"
+      }
+    },
+    "owner": "sudiptapathaks-team",
+    "slug": "sudiptapathak",
+    "android": {
+      "package": "com.sudiptapathaksteam.sudiptapathak"
+    }
+  }
+}
