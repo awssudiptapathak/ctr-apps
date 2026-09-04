@@ -7,6 +7,7 @@
     },
     "owner": "sudiptapathaks-team",
     "slug": "sudiptapathak",
+    "newArchEnabled": false,
     "android": {
       "package": "com.sudiptapathaksteam.sudiptapathak"
     }
