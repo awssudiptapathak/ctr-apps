@@ -11,6 +11,7 @@ const navLinks = [
   { href: '/schedule', label: 'Schedule' },
   { href: '/participants', label: 'Participants' },
   { href: '/notifications', label: 'Notifications' },
+  { href: '/users', label: 'Users', adminOnly: true },
 ];
 
 const superAdminLinks = [{ href: '/admin-requests', label: 'Admin requests' }];
