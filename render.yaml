@@ -1,0 +1,78 @@
+# CTR-CMS Render blueprint
+# Deploy both services: the API backend and the Next.js admin web app.
+# In the Render dashboard: "New + > Blueprint" and point it at this repo.
+
+databases:
+  - name: ctr-cms-db
+    plan: free
+    ipAllowList: [] # allow all (Render-managed Postgres)
+
+services:
+  # ---- API backend (Express) ----
+  - type: web
+    name: ctr-cms-api
+    runtime: docker
+    repo: https://github.com/USER/ctr-apps   # <-- replace with your repo URL
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: PORT
+        value: 4200
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CORS_ORIGIN
+        value: https://ctr-cms-admin.onrender.com
+      - key: SMS_PROVIDER
+        value: email
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false # set in dashboard, e.g. aws.sudipta.pathak@gmail.com
+      - key: SMTP_PASS
+        sync: false # Gmail App Password (set in dashboard only)
+      - key: EMAIL_FROM
+        sync: false
+      - key: PGHOST
+        fromDatabase:
+          name: ctr-cms-db
+          property: host
+      - key: PGPORT
+        fromDatabase:
+          name: ctr-cms-db
+          property: port
+      - key: PGDATABASE
+        fromDatabase:
+          name: ctr-cms-db
+          property: database
+      - key: PGUSER
+        fromDatabase:
+          name: ctr-cms-db
+          property: user
+      - key: PGPASSWORD
+        fromDatabase:
+          name: ctr-cms-db
+          property: password
+
+  # ---- Admin (Next.js) ----
+  - type: web
+    name: ctr-cms-admin
+    runtime: docker
+    repo: https://github.com/USER/ctr-apps   # <-- replace with your repo URL
+    dockerfilePath: ./Dockerfile.admin
+    plan: free
+    buildCommand: echo "using Dockerfile.admin"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: NEXT_PUBLIC_API_URL
+        value: https://ctr-cms-api.onrender.com/api

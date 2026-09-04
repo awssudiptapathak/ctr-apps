@@ -55,7 +55,7 @@ export default function AdminLoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundImage: "linear-gradient(180deg, rgba(18,9,11,0.6), rgba(28,12,18,0.8)), url('/images/festival-bg.jpeg')",
+        backgroundImage: "linear-gradient(180deg, rgba(18,9,11,0.62), rgba(28,12,18,0.82)), url('/images/hero-durga-puja.jpg')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',

@@ -13,10 +13,14 @@ const navLinks = [
   { href: '/notifications', label: 'Notifications' },
 ];
 
+const superAdminLinks = [{ href: '/admin-requests', label: 'Admin requests' }];
+
 export default function AdminNav() {
   const router = useRouter();
   const pathname = usePathname();
   const user = getAdminUser();
+  const visibleLinks =
+    user?.role === 'SUPER_ADMIN' ? [...navLinks, ...superAdminLinks] : navLinks;
 
   const handleLogout = () => {
     clearAdminAuth();
@@ -44,7 +48,7 @@ export default function AdminNav() {
         </div>
 
         <nav style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-          {navLinks.map((link) => {
+          {visibleLinks.map((link) => {
             const active = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href));
             return (
               <Link

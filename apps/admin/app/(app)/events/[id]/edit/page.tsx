@@ -59,7 +59,7 @@ export default function EditEventPage() {
     <main
       style={{
         minHeight: '100vh',
-        backgroundImage: "linear-gradient(180deg, rgba(18,9,11,0.88), rgba(42,14,17,0.96)), url('/images/festival-bg.jpeg')",
+        backgroundImage: "linear-gradient(180deg, rgba(18,9,11,0.88), rgba(42,14,17,0.96)), url('/images/puja-preparation.jpg')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         color: '#fff7ea',

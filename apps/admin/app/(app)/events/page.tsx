@@ -101,7 +101,7 @@ export default function EventsPage() {
     <main
       style={{
         minHeight: '100vh',
-        backgroundImage: "linear-gradient(180deg, rgba(26,12,14,0.88), rgba(53,17,21,0.94)), url('/images/festival-bg.jpeg')",
+        backgroundImage: "linear-gradient(180deg, rgba(26,12,14,0.88), rgba(53,17,21,0.94)), url('/images/puja-preparation.jpg')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         color: '#fff7ea',

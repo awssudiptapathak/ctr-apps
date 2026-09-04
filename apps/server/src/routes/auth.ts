@@ -105,12 +105,12 @@ router.get('/profiles', requireAuth, async (_req: AuthedRequest, res) => {
   return res.json({ users: rows.map(toAuthUser) });
 });
 
-async function recordOtpDelivery(phone: string, code: string, purpose: string): Promise<void> {
-  await deliverOtp({ phone, code, purpose });
+async function recordOtpDelivery(phone: string, code: string, purpose: string, email?: string): Promise<void> {
+  await deliverOtp({ phone, code, purpose, email });
 }
 
 router.post('/otp/request', async (req, res) => {
-  const { phone, purpose } = req.body || {};
+  const { phone, purpose, email } = req.body || {};
   if (!phone || !isValidPhoneNumber(phone)) {
     return res.status(400).json({ error: 'Enter a valid mobile number in E.164 format.' });
   }
@@ -125,6 +125,9 @@ router.post('/otp/request', async (req, res) => {
     const exists = await queryOne<any>('SELECT id FROM public.profiles WHERE phone = $1', [phone]);
     if (exists) {
       return res.status(409).json({ error: 'A profile already exists for this mobile number.' });
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'A valid email is required to verify your phone.' });
     }
   }
 
@@ -150,7 +153,7 @@ router.post('/otp/request', async (req, res) => {
     [phone, otpPurpose, `${salt}:${codeHash}`, expiresAt, OTP_MAX_ATTEMPTS],
   );
 
-  await recordOtpDelivery(phone, code, otpPurpose);
+  await recordOtpDelivery(phone, code, otpPurpose, email);
 
   return res.json({
     ok: true,

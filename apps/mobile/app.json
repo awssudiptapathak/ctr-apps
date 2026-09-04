@@ -7,13 +7,22 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": ["**/*"],
-    "ios": {
-      "supportsTablet": true
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#12090b"
     },
     "android": {
+      "package": "com.clubtown.ctrcms",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#12090b"
       }
+    },
+    "ios": {
+      "supportsTablet": true
     }
   }
 }

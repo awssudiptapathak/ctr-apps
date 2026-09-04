@@ -7,6 +7,25 @@ import type { FeedEvent, FeedProgram, AuthUser, Nomination } from './src/types';
 
 type Screen = 'login' | 'otp' | 'signup' | 'home';
 
+const galleryImages = [
+  require('./assets/celebrations.jpg'),
+  require('./assets/puja-preparation.jpg'),
+  require('./assets/dhak-drums.jpg'),
+  require('./assets/idol-shailaputri.jpg'),
+  require('./assets/community.jpg'),
+  require('./assets/idol-katyani.jpg'),
+  require('./assets/13-years.jpg'),
+  require('./assets/idol-mahagouri.jpg'),
+  require('./assets/ilove-ctr.jpg'),
+];
+
+const eventThumbnails = [
+  require('./assets/hero-festival.jpg'),
+  require('./assets/puja-preparation.jpg'),
+  require('./assets/dhak-drums.jpg'),
+  require('./assets/celebrations.jpg'),
+];
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
   const [phone, setPhone] = useState('+919876543210');
@@ -15,6 +34,8 @@ export default function App() {
   const [newPassword, setNewPassword] = useState('');
   const [devOtp, setDevOtp] = useState('');
   const [otpVerified, setOtpVerified] = useState(false);
+  const [otpPurpose, setOtpPurpose] = useState<'password_reset' | 'verify_phone'>('password_reset');
+  const [signupStep, setSignupStep] = useState<'details' | 'otp'>('details');
   const [fullName, setFullName] = useState('Aarav Sharma');
   const [flatNo, setFlatNo] = useState('B-204');
   const [email, setEmail] = useState('aarav@clubtown.com');
@@ -87,6 +108,7 @@ export default function App() {
     setOtpVerified(false);
     setDevOtp('');
     setNewPassword('');
+    setOtpPurpose('password_reset');
     try {
       const data = await api.post<{ ok: boolean; expiresIn: number; devOtp?: string }>('/auth/otp/request', {
         phone,
@@ -110,8 +132,24 @@ export default function App() {
     setError('');
     setLoading(true);
     try {
-      await api.post<{ ok: boolean }>('/auth/otp/verify', { phone, purpose: 'password_reset', code: otp });
-      setOtpVerified(true);
+      await api.post<{ ok: boolean }>('/auth/otp/verify', { phone, purpose: otpPurpose, code: otp });
+
+      if (otpPurpose === 'password_reset') {
+        setOtpVerified(true);
+        return;
+      }
+
+      const data = await api.post<{ token: string; user: AuthUser }>('/auth/register', {
+        fullName,
+        phone,
+        email,
+        flatNo,
+        password,
+      });
+      setAuthToken(data.token);
+      setUser(data.user);
+      setSignupStep('details');
+      setScreen('home');
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -151,24 +189,31 @@ export default function App() {
       setError('Enter a valid resident phone number.');
       return;
     }
-    if (!password.trim()) {
-      setError('Create a password to complete onboarding.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('A valid email is required to verify your account.');
+      return;
+    }
+    if (!password.trim() || password.trim().length < 8) {
+      setError('Create a password with at least 8 characters.');
       return;
     }
 
     setError('');
     setLoading(true);
+    setOtpVerified(false);
+    setDevOtp('');
+    setOtp('');
+    setNewPassword('');
+    setOtpPurpose('verify_phone');
     try {
-      const data = await api.post<{ token: string; user: AuthUser }>('/auth/register', {
-        fullName,
+      const data = await api.post<{ ok: boolean; expiresIn: number; devOtp?: string }>('/auth/otp/request', {
         phone,
+        purpose: 'verify_phone',
         email,
-        flatNo,
-        password,
       });
-      setAuthToken(data.token);
-      setUser(data.user);
-      setScreen('home');
+      if (data.devOtp) setDevOtp(data.devOtp);
+      setSignupStep('otp');
+      setScreen('otp');
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -235,7 +280,7 @@ export default function App() {
 
   if (screen === 'home') {
     return (
-      <ImageBackground source={require('./assets/festival-hero.jpeg')} style={styles.backgroundImage} resizeMode="cover">
+      <ImageBackground source={require('./assets/hero-durga-puja.jpg')} style={styles.backgroundImage} resizeMode="cover">
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
           <View style={styles.headerRow}>
             <View>
@@ -262,9 +307,9 @@ export default function App() {
           <Text style={styles.sectionLabel}>Upcoming Cultural Events</Text>
           {loading && <ActivityIndicator color="#f9d27a" style={{ marginVertical: 12 }} />}
 
-          {events.map((event) => (
+          {events.map((event, index) => (
             <View key={event.id} style={styles.card}>
-              <Image source={require('./assets/festival-detail.jpeg')} style={styles.cardImage} resizeMode="cover" />
+              <Image source={eventThumbnails[index % eventThumbnails.length]} style={styles.cardImage} resizeMode="cover" />
               <View style={styles.cardBody}>
                 <View style={styles.cardTopRow}>
                   <Text style={styles.cardTitle}>{event.title}</Text>
@@ -290,6 +335,15 @@ export default function App() {
               </View>
             </View>
           ))}
+
+          <Text style={styles.sectionLabel}>Festival Moments</Text>
+          <View style={styles.galleryGrid}>
+            {galleryImages.map((image, idx) => (
+              <View key={idx} style={[styles.galleryTile, { height: idx % 4 === 0 ? 190 : 150 }]}>
+                <Image source={image} style={styles.galleryImage} resizeMode="cover" />
+              </View>
+            ))}
+          </View>
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Open programs to nominate</Text>
@@ -396,10 +450,10 @@ export default function App() {
 
   if (screen === 'otp') {
     return (
-      <ImageBackground source={require('./assets/festival-hero.jpeg')} style={styles.backgroundImage} resizeMode="cover">
+      <ImageBackground source={require('./assets/hero-durga-puja.jpg')} style={styles.backgroundImage} resizeMode="cover">
         <View style={styles.authContainer}>
           <View style={styles.authCard}>
-            {otpVerified ? (
+            {otpVerified && otpPurpose === 'password_reset' ? (
               <>
                 <Text style={styles.title}>Set new password</Text>
                 <Text style={styles.subtitle}>Enter a new password for {phone}</Text>
@@ -449,16 +503,16 @@ export default function App() {
 
   if (screen === 'signup') {
     return (
-      <ImageBackground source={require('./assets/festival-hero.jpeg')} style={styles.backgroundImage} resizeMode="cover">
+      <ImageBackground source={require('./assets/hero-durga-puja.jpg')} style={styles.backgroundImage} resizeMode="cover">
         <ScrollView style={styles.authContainerScroll} contentContainerStyle={styles.authContent}>
           <View style={styles.authCard}>
             <Text style={styles.title}>Resident onboarding</Text>
-            <Text style={styles.subtitle}>Complete your profile</Text>
+            <Text style={styles.subtitle}>We&#39;ll email you a code to verify your phone</Text>
 
             <TextInput value={fullName} onChangeText={setFullName} style={styles.input} placeholder="Full name" />
             <TextInput value={phone} onChangeText={setPhone} style={styles.input} placeholder="Phone number" keyboardType="phone-pad" />
             <TextInput value={flatNo} onChangeText={setFlatNo} style={styles.input} placeholder="Flat / House number" />
-            <TextInput value={email} onChangeText={setEmail} style={styles.input} placeholder="Email (optional)" keyboardType="email-address" />
+            <TextInput value={email} onChangeText={setEmail} style={styles.input} placeholder="Email (required for verification)" keyboardType="email-address" />
             <TextInput
               value={password}
               onChangeText={setPassword}
@@ -470,7 +524,7 @@ export default function App() {
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <Pressable style={[styles.primaryButton, loading && styles.disabledButton]} onPress={handleCreateAccount}>
-              {loading ? <ActivityIndicator color="#fffaf0" /> : <Text style={styles.primaryButtonText}>Create account</Text>}
+              {loading ? <ActivityIndicator color="#fffaf0" /> : <Text style={styles.primaryButtonText}>Send verification code</Text>}
             </Pressable>
 
             <Pressable onPress={() => setScreen('login')}>
@@ -483,7 +537,7 @@ export default function App() {
   }
 
   return (
-    <ImageBackground source={require('./assets/festival-hero.jpeg')} style={styles.backgroundImage} resizeMode="cover">
+    <ImageBackground source={require('./assets/hero-festival.jpg')} style={styles.backgroundImage} resizeMode="cover">
       <View style={styles.authContainer}>
         <View style={styles.authCard}>
           <Text style={styles.title}>CTR-CMS</Text>
@@ -523,6 +577,7 @@ export default function App() {
               setFlatNo('');
               setEmail('');
               setPassword('');
+              setSignupStep('details');
               setError('');
               setScreen('signup');
             }}
@@ -734,6 +789,25 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#fff1cc',
     marginBottom: 12,
+  },
+  galleryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
+  galleryTile: {
+    width: '48.5%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(249,210,122,0.4)',
+    backgroundColor: 'rgba(20, 11, 14, 0.7)',
+  },
+  galleryImage: {
+    width: '100%',
+    height: '100%',
   },
   card: {
     backgroundColor: 'rgba(20, 11, 14, 0.78)',
