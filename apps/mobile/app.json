@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "CTR-CMS",
-    "slug": "ctr-cms-mobile",
+    "slug": "sudiptapathak",
     "scheme": "ctr-cms",
     "version": "1.0.0",
     "owner": "sudiptapathaks-team",
@@ -21,7 +21,7 @@
       "backgroundColor": "#12090b"
     },
     "android": {
-      "package": "com.clubtown.ctrcms",
+      "package": "com.sudiptapathaksteam.sudiptapathak",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
