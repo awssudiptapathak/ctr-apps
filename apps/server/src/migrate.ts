@@ -4,7 +4,6 @@ import pool from './db.js';
 
 const MIGRATION_FILES = [
   '000_custom_auth_pg.sql',
-  '001_init_schema.sql',
   '002_event_program_indexes_and_validations.sql',
   '003_admin_requests.sql',
 ];
@@ -20,26 +19,31 @@ async function tableExists(name: string): Promise<boolean> {
 }
 
 export async function runMigrations(): Promise<void> {
-  const hasProfiles = await tableExists('profiles');
-  if (hasProfiles) {
-    console.log('Database already initialized — skipping migrations.');
-    return;
-  }
-
-  console.log('Database not initialized — running migrations...');
-
   const root = join(import.meta.dirname, '..', '..', '..');
+  const hasProfiles = await tableExists('profiles');
 
-  for (const file of MIGRATION_FILES) {
-    const sql = readFileSync(join(root, 'supabase', 'migrations', file), 'utf8').replace(/^\uFEFF/, '');
-    console.log(`  Running ${file}...`);
-    await pool.query(sql);
+  if (!hasProfiles) {
+    console.log('Database not initialized — running migrations...');
+
+    for (const file of MIGRATION_FILES) {
+      const sql = readFileSync(join(root, 'supabase', 'migrations', file), 'utf8').replace(/^\uFEFF/, '');
+      console.log(`  Running ${file}...`);
+      await pool.query(sql);
+    }
+
+    console.log('Migrations complete.');
+  } else {
+    console.log('Tables already exist — skipping migrations.');
   }
 
-  const seedPath = join(root, 'supabase', SEED_FILE);
-  const seedSql = readFileSync(seedPath, 'utf8').replace(/^\uFEFF/, '');
-  console.log('  Running seed.sql...');
-  await pool.query(seedSql);
-
-  console.log('Database initialized successfully.');
+  const profileCount = await pool.query('SELECT count(*) FROM profiles');
+  if (parseInt(profileCount.rows[0].count) === 0) {
+    const seedPath = join(root, 'supabase', SEED_FILE);
+    const seedSql = readFileSync(seedPath, 'utf8').replace(/^\uFEFF/, '');
+    console.log('Profiles table empty — running seed.sql...');
+    await pool.query(seedSql);
+    console.log('Seed complete.');
+  } else {
+    console.log(`Profiles table has ${profileCount.rows[0].count} rows — skipping seed.`);
+  }
 }
