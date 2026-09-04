@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "CTR-CMS",
+    "slug": "ctr-cms-mobile",
+    "scheme": "ctr-cms",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    }
+  }
+}

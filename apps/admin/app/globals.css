@@ -1,0 +1,56 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', 'Georgia', 'Times New Roman', serif;
+  background: #170d10;
+  color: #111827;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+}
+
+main {
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  letter-spacing: -0.03em;
+}
+
+button, input {
+  font: inherit;
+}
+
+@media print {
+  body {
+    background: #fff !important;
+    color: #111827 !important;
+  }
+
+  a, button {
+    display: none !important;
+  }
+
+  main {
+    background: #fff !important;
+    color: #111827 !important;
+    box-shadow: none !important;
+  }
+
+  section, div {
+    background: #fff !important;
+    color: #111827 !important;
+    box-shadow: none !important;
+    border-color: #d1d5db !important;
+  }
+}
