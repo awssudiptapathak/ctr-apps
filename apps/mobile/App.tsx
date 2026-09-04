@@ -12,6 +12,9 @@ export default function App() {
   const [phone, setPhone] = useState('+919876543210');
   const [password, setPassword] = useState('Welcome@123');
   const [otp, setOtp] = useState('123456');
+  const [newPassword, setNewPassword] = useState('');
+  const [devOtp, setDevOtp] = useState('');
+  const [otpVerified, setOtpVerified] = useState(false);
   const [fullName, setFullName] = useState('Aarav Sharma');
   const [flatNo, setFlatNo] = useState('B-204');
   const [email, setEmail] = useState('aarav@clubtown.com');
@@ -74,22 +77,69 @@ export default function App() {
     }
   };
 
-  const handleSendOtp = () => {
+  const handleSendOtp = async () => {
     if (!isPhoneValid) {
       setError('Please enter a valid mobile number before requesting OTP.');
       return;
     }
     setError('');
-    setScreen('otp');
+    setLoading(true);
+    setOtpVerified(false);
+    setDevOtp('');
+    setNewPassword('');
+    try {
+      const data = await api.post<{ ok: boolean; expiresIn: number; devOtp?: string }>('/auth/otp/request', {
+        phone,
+        purpose: 'password_reset',
+      });
+      if (data.devOtp) setDevOtp(data.devOtp);
+      setOtp('');
+      setScreen('otp');
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleVerifyOtp = () => {
+  const handleVerifyOtp = async () => {
     if (otp.trim().length !== 6) {
       setError('Enter the 6-digit OTP code.');
       return;
     }
     setError('');
-    setScreen('home');
+    setLoading(true);
+    try {
+      await api.post<{ ok: boolean }>('/auth/otp/verify', { phone, purpose: 'password_reset', code: otp });
+      setOtpVerified(true);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (newPassword.trim().length < 8) {
+      setError('New password must be at least 8 characters.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      await api.post<{ ok: boolean }>('/auth/password-reset', {
+        phone,
+        code: otp,
+        newPassword,
+      });
+      setScreen('login');
+      setNewPassword('');
+      setOtpVerified(false);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreateAccount = async () => {
@@ -349,23 +399,44 @@ export default function App() {
       <ImageBackground source={require('./assets/festival-hero.jpeg')} style={styles.backgroundImage} resizeMode="cover">
         <View style={styles.authContainer}>
           <View style={styles.authCard}>
-            <Text style={styles.title}>Verify OTP</Text>
-            <Text style={styles.subtitle}>We sent a 6-digit code to {phone}</Text>
-
-            <TextInput
-              value={otp}
-              onChangeText={setOtp}
-              style={styles.input}
-              placeholder="Enter 6-digit OTP"
-              keyboardType="number-pad"
-              maxLength={6}
-            />
-
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            <Pressable style={styles.primaryButton} onPress={handleVerifyOtp}>
-              <Text style={styles.primaryButtonText}>Verify</Text>
-            </Pressable>
+            {otpVerified ? (
+              <>
+                <Text style={styles.title}>Set new password</Text>
+                <Text style={styles.subtitle}>Enter a new password for {phone}</Text>
+                <TextInput
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  style={styles.input}
+                  placeholder="New password (min 8 chars)"
+                  secureTextEntry
+                />
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                <Pressable style={styles.primaryButton} onPress={handleResetPassword}>
+                  <Text style={styles.primaryButtonText}>{loading ? 'Saving…' : 'Set password'}</Text>
+                </Pressable>
+                <Pressable onPress={() => { setOtpVerified(false); setNewPassword(''); setError(''); }}>
+                  <Text style={styles.linkText}>Re-enter OTP</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={styles.title}>Verify OTP</Text>
+                <Text style={styles.subtitle}>We sent a 6-digit code to {phone}</Text>
+                {devOtp ? <Text style={styles.devHint}>Dev code: {devOtp}</Text> : null}
+                <TextInput
+                  value={otp}
+                  onChangeText={setOtp}
+                  style={styles.input}
+                  placeholder="Enter 6-digit OTP"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                />
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                <Pressable style={styles.primaryButton} onPress={handleVerifyOtp}>
+                  <Text style={styles.primaryButtonText}>{loading ? 'Verifying…' : 'Verify'}</Text>
+                </Pressable>
+              </>
+            )}
 
             <Pressable onPress={() => setScreen('login')}>
               <Text style={styles.linkText}>Back to login</Text>
@@ -379,7 +450,7 @@ export default function App() {
   if (screen === 'signup') {
     return (
       <ImageBackground source={require('./assets/festival-hero.jpeg')} style={styles.backgroundImage} resizeMode="cover">
-        <ScrollView style={styles.authContainer} contentContainerStyle={styles.authContent}>
+        <ScrollView style={styles.authContainerScroll} contentContainerStyle={styles.authContent}>
           <View style={styles.authCard}>
             <Text style={styles.title}>Resident onboarding</Text>
             <Text style={styles.subtitle}>Complete your profile</Text>
@@ -444,7 +515,18 @@ export default function App() {
             <Text style={styles.secondaryButtonText}>Forgot password / OTP reset</Text>
           </Pressable>
 
-          <Pressable style={styles.secondaryButton} onPress={() => setScreen('signup')}>
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => {
+              setFullName('');
+              setPhone('');
+              setFlatNo('');
+              setEmail('');
+              setPassword('');
+              setError('');
+              setScreen('signup');
+            }}
+          >
             <Text style={styles.secondaryButtonText}>Create resident account</Text>
           </Pressable>
 
@@ -475,7 +557,15 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
     backgroundColor: 'rgba(20, 10, 12, 0.42)',
   },
+  authContainerScroll: {
+    flex: 1,
+    paddingHorizontal: 22,
+    paddingVertical: 30,
+    backgroundColor: 'rgba(20, 10, 12, 0.42)',
+  },
   authContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingVertical: 36,
   },
   authCard: {
@@ -540,6 +630,12 @@ const styles = StyleSheet.create({
     color: '#ffd9d9',
     marginBottom: 10,
     fontSize: 13,
+  },
+  devHint: {
+    color: '#aef0ae',
+    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '700',
   },
   linkText: {
     textAlign: 'center',

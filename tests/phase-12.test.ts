@@ -13,6 +13,20 @@ import {
 
 const API_URL = process.env.CTR_CMS_API_URL || 'http://localhost:4200/api';
 
+import { Pool } from 'pg';
+import bcrypt from 'bcryptjs';
+
+const TEST_USER_PHONE = '+918777742683';
+const TEST_USER_PASSWORD = 'Test@123';
+
+const pool = new Pool({
+  host: 'localhost',
+  port: 5432,
+  database: 'ctrcms',
+  user: 'ctrcms',
+  password: 'ctrcms123',
+});
+
 async function apiFetch(path: string, options: { method?: string; token?: string; body?: unknown } = {}) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (options.token) headers.Authorization = `Bearer ${options.token}`;
@@ -130,4 +144,43 @@ test('Phase 12 live: OTP verify rejects an invalid code and locks after max atte
   }
   assert.ok(invalidCount >= 1, 'invalid codes are rejected');
   assert.equal(finalStatus, 410, 'attempts are exhausted and return 410 after max attempts');
+});
+
+test('Phase 12 live: password reset via OTP changes the password and lets the user log in', async (t) => {
+  if (!(await serverIsReachable())) return t.skip('API server not reachable');
+
+  const tempPassword = `Temp${Date.now()}`;
+  try {
+    const request = await apiFetch('/auth/otp/request', {
+      method: 'POST',
+      body: { phone: TEST_USER_PHONE, purpose: 'password_reset' },
+    });
+    assert.equal(request.ok, true);
+    assert.ok(request.devOtp, 'dev environment exposes the OTP code');
+
+    await apiFetch('/auth/otp/verify', {
+      method: 'POST',
+      body: { phone: TEST_USER_PHONE, purpose: 'password_reset', code: request.devOtp },
+    });
+
+    const reset = await apiFetch('/auth/password-reset', {
+      method: 'POST',
+      body: { phone: TEST_USER_PHONE, code: request.devOtp, newPassword: tempPassword },
+    });
+    assert.equal(reset.ok, true, 'password reset succeeds after OTP verify');
+
+    const login = await apiFetch('/auth/login', {
+      method: 'POST',
+      body: { phone: TEST_USER_PHONE, password: tempPassword },
+    });
+    assert.ok(login.token, 'login succeeds with the new password');
+    assert.equal(login.user.phone, TEST_USER_PHONE);
+  } finally {
+    const restoreHash = bcrypt.hashSync(TEST_USER_PASSWORD, 10);
+    await pool.query('UPDATE public.profiles SET password_hash = $1 WHERE phone = $2', [
+      restoreHash,
+      TEST_USER_PHONE,
+    ]);
+    await pool.end();
+  }
 });

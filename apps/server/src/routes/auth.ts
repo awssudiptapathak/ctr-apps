@@ -14,6 +14,7 @@ import {
   OTP_MAX_ATTEMPTS,
   OTP_RESEND_COOLDOWN_MS,
 } from '../otp.js';
+import { deliverOtp } from '../otpDelivery.js';
 
 const router = Router();
 
@@ -104,13 +105,8 @@ router.get('/profiles', requireAuth, async (_req: AuthedRequest, res) => {
   return res.json({ users: rows.map(toAuthUser) });
 });
 
-async function recordOtpDelivery(phone: string, code: string): Promise<void> {
-  const idempotencyKey = `otp:${phone}:${Date.now()}`;
-  await query(
-    `INSERT INTO public.whatsapp_messages (provider, idempotency_key, status, error)
-     VALUES ('mock', $1, 'SENT', $2)`,
-    [idempotencyKey, `OTP ${code} for ${phone} (mock provider)`],
-  ).catch(() => {});
+async function recordOtpDelivery(phone: string, code: string, purpose: string): Promise<void> {
+  await deliverOtp({ phone, code, purpose });
 }
 
 router.post('/otp/request', async (req, res) => {
@@ -154,7 +150,7 @@ router.post('/otp/request', async (req, res) => {
     [phone, otpPurpose, `${salt}:${codeHash}`, expiresAt, OTP_MAX_ATTEMPTS],
   );
 
-  await recordOtpDelivery(phone, code);
+  await recordOtpDelivery(phone, code, otpPurpose);
 
   return res.json({
     ok: true,
@@ -201,6 +197,35 @@ router.post('/otp/verify', async (req, res) => {
   );
 
   return res.json({ ok: true, purpose: otpPurpose });
+});
+
+router.post('/password-reset', async (req, res) => {
+  const { phone, code, newPassword } = req.body || {};
+  if (!phone || !code || !isValidPhoneNumber(phone)) {
+    return res.status(400).json({ error: 'Phone and OTP code are required.' });
+  }
+  const password = String(newPassword || '');
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  }
+
+  const otpPurpose = 'password_reset';
+  const record = await queryOne<any>(
+    `SELECT * FROM public.otp_codes
+     WHERE phone = $1 AND purpose = $2 AND verified_at IS NOT NULL
+     ORDER BY verified_at DESC LIMIT 1`,
+    [phone, otpPurpose],
+  );
+  if (!record || !verifyOtpHash(code, String(record.code_hash).split(':')[0], String(record.code_hash).split(':')[1])) {
+    return res.status(400).json({ error: 'Please verify your OTP before resetting the password.' });
+  }
+
+  await query(
+    'UPDATE public.profiles SET password_hash = $1 WHERE phone = $2',
+    [hashPassword(password), phone],
+  );
+
+  return res.json({ ok: true });
 });
 
 export default router;
