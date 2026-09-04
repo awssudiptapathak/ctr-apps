@@ -4,8 +4,15 @@
     "slug": "ctr-cms-mobile",
     "scheme": "ctr-cms",
     "version": "1.0.0",
+    "owner": "sudiptapathaks-team",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "extra": {
+      "eas": {
+        "projectId": "30bc627e-544b-47b0-983a-d25750f50050"
+      }
+    },
     "assetBundlePatterns": ["**/*"],
     "icon": "./assets/icon.png",
     "splash": {
