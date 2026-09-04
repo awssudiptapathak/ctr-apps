@@ -13,7 +13,7 @@
     "db:init": "psql -U ctrcms -d ctrcms -f supabase/migrations/000_custom_auth_pg.sql",
     "db:seed": "psql -U ctrcms -d ctrcms -f supabase/seed.sql",
     "mobile": "npm run start --workspace @ctr-cms/mobile",
-    "mobile:apk": "npm run build:apk --workspace @ctr-cms/mobile",
+    "mobile:apk": "cd /d apps/mobile && npx eas build --platform android --profile preview",
     "mobile:android": "npm run build:android --workspace @ctr-cms/mobile",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
