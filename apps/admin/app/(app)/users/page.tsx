@@ -228,7 +228,6 @@ export default function UsersPage() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ background: roleBadge[u.role] || '#666', color: '#fff', borderRadius: 999, padding: '0.25rem 0.7rem', fontWeight: 700, fontSize: 11 }}>{u.role}</span>
                     <span style={{ background: u.status === 'ACTIVE' ? '#166534' : '#991b1b', color: '#fff', borderRadius: 999, padding: '0.25rem 0.7rem', fontWeight: 700, fontSize: 11 }}>{u.status}</span>
                     {isSuperAdmin && u.id !== user?.id && (
                       <>
@@ -266,6 +265,15 @@ export default function UsersPage() {
             ))
           )}
         </section>
+
+        <footer style={{ marginTop: '3rem', borderTop: '1px solid rgba(249,210,122,0.2)', paddingTop: '1.5rem', textAlign: 'center' }}>
+          <div style={{ color: '#f4d7a0', fontSize: 12, lineHeight: 1.8 }}>
+            <strong style={{ color: '#f9d27a' }}>Disclaimer:</strong> This platform is intended for use by authorised members of the Clubtown Residential Committee (CTR). All data, including personal details, nominations, and event information, is managed by the committee and should not be shared externally.
+          </div>
+          <div style={{ color: '#8a7a60', fontSize: 11, marginTop: '0.75rem' }}>
+            &copy; {new Date().getFullYear()} Clubtown Residential Committee. All rights reserved.
+          </div>
+        </footer>
       </div>
     </main>
   );
