@@ -153,7 +153,12 @@ router.post('/otp/request', async (req, res) => {
     [phone, otpPurpose, `${salt}:${codeHash}`, expiresAt, OTP_MAX_ATTEMPTS],
   );
 
-  await recordOtpDelivery(phone, code, otpPurpose, email);
+  try {
+    await recordOtpDelivery(phone, code, otpPurpose, email);
+  } catch (error) {
+    console.error('Failed to deliver OTP:', error);
+    return res.status(502).json({ error: 'Unable to send verification code. Please try again.' });
+  }
 
   return res.json({
     ok: true,
