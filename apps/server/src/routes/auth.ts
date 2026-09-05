@@ -90,6 +90,37 @@ router.post('/recover-super-admin/restore', async (req, res) => {
   return res.status(201).json({ ok: true, email: row.email });
 });
 
+router.post('/recover-super-admin/reset', async (req, res) => {
+  const configuredToken = process.env.SUPER_ADMIN_RECOVERY_TOKEN;
+  const suppliedToken = req.header('x-super-admin-recovery-token');
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const phone = String(req.body?.phone || '').trim();
+  const password = String(req.body?.password || '');
+
+  if (!configuredToken || !suppliedToken || !emailPattern.test(email)
+    || !isValidPhoneNumber(phone) || password.length < 8) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const configured = Buffer.from(configuredToken);
+  const supplied = Buffer.from(suppliedToken);
+  if (configured.length !== supplied.length || !timingSafeEqual(configured, supplied)) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const row = await queryOne<{ id: string; email: string }>(
+    `UPDATE public.profiles
+        SET role = 'SUPER_ADMIN', status = 'ACTIVE', password_hash = $3
+      WHERE lower(email) = $1 AND phone = $2
+      RETURNING id, email`,
+    [email, phone, hashPassword(password)],
+  );
+  if (!row) {
+    return res.status(404).json({ error: 'Account not found' });
+  }
+  return res.json({ ok: true, email: row.email });
+});
+
 function toAuthUser(row: any): AuthUser {
   return {
     id: row.id,
