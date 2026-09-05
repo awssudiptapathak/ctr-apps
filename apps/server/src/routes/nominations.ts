@@ -25,6 +25,14 @@ function mapNomination(row: any) {
     programId: row.program_id,
     userId: row.user_id,
     participantName: row.participant_name,
+    participantAge: row.participant_age,
+    performanceMode: row.performance_mode,
+    performanceType: row.performance_type,
+    probableTimeMinutes: row.probable_time_minutes,
+    performanceSummary: row.performance_summary,
+    photoData: row.photo_data,
+    block: row.flat_no ? String(row.flat_no).split('/')[1] : null,
+    flatNo: row.flat_no ? String(row.flat_no).split('/')[0] : null,
     status: row.status,
     reason: row.reason,
     createdAt: row.created_at,
@@ -60,9 +68,26 @@ router.get('/', requireAuth, async (req: AuthedRequest, res) => {
 });
 
 router.post('/', requireAuth, async (req: AuthedRequest, res) => {
-  const { programId, participantName } = req.body || {};
-  if (!programId || !participantName) {
-    return res.status(400).json({ error: 'programId and participantName are required' });
+  const {
+    programId, participantName, participantAge, performanceMode, performanceType,
+    probableTimeMinutes, performanceSummary, photoData,
+  } = req.body || {};
+  if (!programId || !participantName || !participantAge || !performanceMode || !performanceType || !probableTimeMinutes || !performanceSummary) {
+    return res.status(400).json({ error: 'All participant and performance fields are required' });
+  }
+  if (!['SOLO', 'GROUP'].includes(performanceMode) || !['DANCE', 'SINGING', 'DRAMA', 'RECITATION', 'INSTRUMENT'].includes(performanceType)) {
+    return res.status(400).json({ error: 'Invalid performance mode or type' });
+  }
+  const age = Number(participantAge);
+  const minutes = Number(probableTimeMinutes);
+  if (!Number.isInteger(age) || age < 1 || age > 120) {
+    return res.status(400).json({ error: 'Age must be between 1 and 120.' });
+  }
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > (performanceMode === 'GROUP' ? 20 : 10)) {
+    return res.status(400).json({ error: `Probable time must be 1-${performanceMode === 'GROUP' ? 20 : 10} minutes.` });
+  }
+  if (photoData && (!String(photoData).startsWith('data:image/') || String(photoData).length > 2500000)) {
+    return res.status(400).json({ error: 'Photo must be an image smaller than 2 MB.' });
   }
 
   const program = await queryOne<any>('SELECT * FROM public.programs WHERE id = $1', [programId]);
@@ -96,12 +121,40 @@ router.post('/', requireAuth, async (req: AuthedRequest, res) => {
   }
 
   const row = await queryOne<any>(
-    `INSERT INTO public.nominations (program_id, user_id, participant_name)
-     VALUES ($1, $2, $3)
+    `INSERT INTO public.nominations
+      (program_id, user_id, participant_name, participant_age, performance_mode, performance_type,
+       probable_time_minutes, performance_summary, photo_data)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [programId, req.userId, participantName],
+    [programId, req.userId, participantName.trim(), age, performanceMode, performanceType,
+      minutes, performanceSummary.trim(), photoData || null],
   );
   return res.status(201).json({ nomination: mapNomination(row) });
+});
+
+router.get('/participants', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req: AuthedRequest, res) => {
+  const eventId = typeof req.query.eventId === 'string' ? req.query.eventId : '';
+  const programId = typeof req.query.programId === 'string' ? req.query.programId : '';
+  if (!eventId || !programId) return res.status(400).json({ error: 'eventId and programId are required' });
+  const rows = await query<any>(
+    `SELECT n.*, p.full_name AS resident_name, p.phone, p.email, p.flat_no,
+            pr.name AS program_name, e.title AS event_title
+       FROM public.nominations n
+       JOIN public.profiles p ON p.id = n.user_id
+       JOIN public.programs pr ON pr.id = n.program_id
+       JOIN public.events e ON e.id = pr.event_id
+      WHERE pr.id = $1 AND pr.event_id = $2
+      ORDER BY n.created_at ASC`,
+    [programId, eventId],
+  );
+  return res.json({ participants: rows.map((row) => ({
+    ...mapNomination(row),
+    residentName: row.resident_name,
+    phone: row.phone,
+    email: row.email,
+    programName: row.program_name,
+    eventTitle: row.event_title,
+  })) });
 });
 
 router.put('/:id/status', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {

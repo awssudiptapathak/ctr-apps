@@ -54,7 +54,7 @@ export default function HomePage() {
             </div>
             <div>
               <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: 1.2 }}>CTR-CMS</div>
-              <div style={{ fontSize: 11, letterSpacing: 1.2, color: '#f4d7a0', textTransform: 'uppercase' }}>Clubtown Residency</div>
+              <div style={{ fontSize: 11, letterSpacing: 1.2, color: '#f4d7a0', textTransform: 'uppercase' }}>Belgharia Club Town Cultural Association</div>
             </div>
           </div>
 

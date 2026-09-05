@@ -48,6 +48,12 @@ export interface Nomination {
   programId: string;
   userId: string;
   participantName: string;
+  participantAge: number | null;
+  performanceMode: 'SOLO' | 'GROUP' | null;
+  performanceType: string | null;
+  probableTimeMinutes: number | null;
+  performanceSummary: string | null;
+  photoData: string | null;
   status: string;
   createdAt: string;
   updatedAt: string;

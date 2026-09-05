@@ -1,7 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { isValidPhoneNumber, checkNominationEligibility } from '@ctr-cms/shared';
+import * as ImagePicker from 'expo-image-picker';
+import { isValidPhoneNumber, isValidFlatNumber, checkNominationEligibility } from '@ctr-cms/shared';
 import { api, setAuthToken } from './src/api';
 import type { FeedEvent, FeedProgram, AuthUser, Nomination } from './src/types';
 
@@ -29,6 +30,7 @@ const eventThumbnails = [
 export default function App() {
   const [screen, setScreen] = useState<Screen>('login');
   const [phone, setPhone] = useState('+919883614680');
+  const [loginEmail, setLoginEmail] = useState('sudip241281@gmail.com');
   const [password, setPassword] = useState('Admin@123');
   const [otp, setOtp] = useState('123456');
   const [newPassword, setNewPassword] = useState('');
@@ -47,6 +49,12 @@ export default function App() {
   const [nominations, setNominations] = useState<Nomination[]>([]);
   const [nominateTarget, setNominateTarget] = useState<FeedProgram | null>(null);
   const [participantName, setParticipantName] = useState('');
+  const [participantAge, setParticipantAge] = useState('');
+  const [performanceMode, setPerformanceMode] = useState<'SOLO' | 'GROUP'>('SOLO');
+  const [performanceType, setPerformanceType] = useState('DANCE');
+  const [probableTimeMinutes, setProbableTimeMinutes] = useState('');
+  const [performanceSummary, setPerformanceSummary] = useState('');
+  const [photoData, setPhotoData] = useState<string | null>(null);
 
   const isPhoneValid = useMemo(() => isValidPhoneNumber(phone), [phone]);
 
@@ -75,8 +83,8 @@ export default function App() {
   }, [screen, loadHome]);
 
   const handleLogin = async () => {
-    if (!isPhoneValid) {
-      setError('Enter a valid mobile number in E.164 format.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail.trim())) {
+      setError('Enter a valid email address.');
       return;
     }
     if (!password.trim()) {
@@ -87,7 +95,7 @@ export default function App() {
     setError('');
     setLoading(true);
     try {
-      const data = await api.post<{ token: string; user: AuthUser }>('/auth/login', { phone, password });
+      const data = await api.post<{ token: string; user: AuthUser }>('/auth/login', { email: loginEmail, password });
       setAuthToken(data.token);
       setUser(data.user);
       setScreen('home');
@@ -193,6 +201,10 @@ export default function App() {
       setError('A valid email is required to verify your account.');
       return;
     }
+    if (!isValidFlatNumber(flatNo)) {
+      setError('Flat must use the format 1A/B1 through 6L/B6.');
+      return;
+    }
     if (!password.trim() || password.trim().length < 8) {
       setError('Create a password with at least 8 characters.');
       return;
@@ -234,13 +246,27 @@ export default function App() {
   const handleCloseNominate = () => {
     setNominateTarget(null);
     setParticipantName('');
+    setParticipantAge('');
+    setProbableTimeMinutes('');
+    setPerformanceSummary('');
+    setPhotoData(null);
     setError('');
   };
 
   const handleNominate = async () => {
     if (!nominateTarget) return;
-    if (!participantName.trim()) {
-      setError('Enter the participant name.');
+    const age = Number(participantAge);
+    const minutes = Number(probableTimeMinutes);
+    if (!participantName.trim() || !Number.isInteger(age) || age < 1 || age > 120) {
+      setError('Enter a valid participant name and age.');
+      return;
+    }
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > (performanceMode === 'GROUP' ? 20 : 10)) {
+      setError(`Probable time must be 1-${performanceMode === 'GROUP' ? 20 : 10} minutes.`);
+      return;
+    }
+    if (!performanceSummary.trim()) {
+      setError('Enter a brief summary of the performance.');
       return;
     }
 
@@ -268,13 +294,33 @@ export default function App() {
     setError('');
     setLoading(true);
     try {
-      await api.post('/nominations', { programId: program.id, participantName: participantName.trim() });
+      await api.post('/nominations', {
+        programId: program.id, participantName: participantName.trim(), participantAge: age,
+        performanceMode, performanceType, probableTimeMinutes: minutes,
+        performanceSummary: performanceSummary.trim(), photoData,
+      });
       await loadHome();
       handleCloseNominate();
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const choosePhoto = async (capture: boolean) => {
+    const permission = capture
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setError('Photo permission is required.');
+      return;
+    }
+    const result = capture
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.55, base64: true })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.55, base64: true });
+    if (!result.canceled && result.assets[0]?.base64) {
+      setPhotoData(`data:image/jpeg;base64,${result.assets[0].base64}`);
     }
   };
 
@@ -285,7 +331,7 @@ export default function App() {
           <View style={styles.headerRow}>
             <View>
               <Text style={styles.brand}>CTR-CMS</Text>
-              <Text style={styles.miniLabel}>Clubtown Residency</Text>
+              <Text style={styles.miniLabel}>Belgharia Club Town Cultural Association</Text>
             </View>
             <Pressable onPress={handleLogout} style={styles.logoutButton}>
               <Text style={styles.logoutText}>Logout</Text>
@@ -405,6 +451,34 @@ export default function App() {
                 style={styles.input}
                 placeholder="Participant name"
               />
+              <TextInput value={participantAge} onChangeText={setParticipantAge} style={styles.input} placeholder="Age" keyboardType="number-pad" />
+              <Text style={styles.fieldLabel}>Performance</Text>
+              <View style={styles.choiceRow}>
+                {(['SOLO', 'GROUP'] as const).map((mode) => (
+                  <Pressable key={mode} onPress={() => setPerformanceMode(mode)} style={[styles.choiceButton, performanceMode === mode && styles.choiceButtonSelected]}>
+                    <Text style={styles.choiceText}>{mode}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.fieldLabel}>Type of performance</Text>
+              <View style={styles.choiceRow}>
+                {[
+                  ['DANCE', 'Dance'], ['SINGING', 'Singing'], ['DRAMA', 'Drama'],
+                  ['RECITATION', 'Recitation'], ['INSTRUMENT', 'Playing instrument'],
+                ].map(([value, label]) => (
+                  <Pressable key={value} onPress={() => setPerformanceType(value)} style={[styles.choiceButton, performanceType === value && styles.choiceButtonSelected]}>
+                    <Text style={styles.choiceText}>{label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput value={probableTimeMinutes} onChangeText={setProbableTimeMinutes} style={styles.input} placeholder={`Probable time (max ${performanceMode === 'GROUP' ? 20 : 10} minutes)`} keyboardType="number-pad" />
+              <TextInput value={performanceSummary} onChangeText={setPerformanceSummary} style={[styles.input, styles.multilineInput]} placeholder="Brief summary of the performance" multiline />
+              <Text style={styles.fieldLabel}>Photo (optional)</Text>
+              <View style={styles.choiceRow}>
+                <Pressable onPress={() => choosePhoto(true)} style={styles.choiceButton}><Text style={styles.choiceText}>Open camera</Text></Pressable>
+                <Pressable onPress={() => choosePhoto(false)} style={styles.choiceButton}><Text style={styles.choiceText}>Upload photo</Text></Pressable>
+              </View>
+              {photoData ? <Image source={{ uri: photoData }} style={styles.photoPreview} /> : null}
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
               <Pressable style={[styles.primaryButton, loading && styles.disabledButton]} onPress={handleNominate}>
                 {loading ? <ActivityIndicator color="#fffaf0" /> : <Text style={styles.primaryButtonText}>Submit nomination</Text>}
@@ -511,7 +585,7 @@ export default function App() {
 
             <TextInput value={fullName} onChangeText={setFullName} style={styles.input} placeholder="Full name" />
             <TextInput value={phone} onChangeText={setPhone} style={styles.input} placeholder="Phone number" keyboardType="phone-pad" />
-            <TextInput value={flatNo} onChangeText={setFlatNo} style={styles.input} placeholder="Flat / House number" />
+            <TextInput value={flatNo} onChangeText={setFlatNo} style={styles.input} placeholder="Flat / Block (e.g. 1A/B1)" />
             <TextInput value={email} onChangeText={setEmail} style={styles.input} placeholder="Email (required for verification)" keyboardType="email-address" />
             <TextInput
               value={password}
@@ -541,14 +615,14 @@ export default function App() {
       <View style={styles.authContainer}>
         <View style={styles.authCard}>
           <Text style={styles.title}>CTR-CMS</Text>
-          <Text style={styles.subtitle}>Clubtown Residency</Text>
+          <Text style={styles.subtitle}>Belgharia Club Town Cultural Association</Text>
 
           <TextInput
-            value={phone}
-            onChangeText={setPhone}
+            value={loginEmail}
+            onChangeText={setLoginEmail}
             style={styles.input}
-            placeholder="Mobile number"
-            keyboardType="phone-pad"
+            placeholder="Enter your email"
+            keyboardType="email-address"
           />
 
           <TextInput
@@ -585,7 +659,7 @@ export default function App() {
             <Text style={styles.secondaryButtonText}>Create resident account</Text>
           </Pressable>
 
-          <Text style={styles.footnote}>Phone + Password login • OTP recovery • Resident onboarding</Text>
+          <Text style={styles.footnote}>Email + Password login • OTP recovery • Resident onboarding</Text>
         </View>
       </View>
     </ImageBackground>
@@ -651,6 +725,43 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 16,
     color: '#1f2937',
+  },
+  multilineInput: {
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+  fieldLabel: {
+    color: '#fbe7b2',
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  choiceRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  choiceButton: {
+    borderWidth: 1,
+    borderColor: '#e7b75f',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  choiceButtonSelected: {
+    backgroundColor: '#d7912b',
+  },
+  choiceText: {
+    color: '#fffaf0',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  photoPreview: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    marginBottom: 12,
   },
   primaryButton: {
     backgroundColor: '#d7912b',

@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { queryOne, query } from '../db.js';
 import { hashPassword, verifyPassword, signToken, type AuthUser } from '../auth.js';
 import { requireAuth, type AuthedRequest } from '../middleware.js';
-import { isValidPhoneNumber } from '@ctr-cms/shared';
+import { isValidPhoneNumber, isValidFlatNumber } from '@ctr-cms/shared';
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 import {
   generateOtpCode,
   generateOtpSalt,
@@ -35,19 +37,25 @@ router.post('/register', async (req, res) => {
   const { fullName, phone, email, flatNo } = req.body || {};
   const password = String(req.body?.password || '');
 
-  if (!fullName || !phone) {
-    return res.status(400).json({ error: 'fullName and phone are required' });
+  if (!fullName || !phone || !email || !flatNo) {
+    return res.status(400).json({ error: 'fullName, email, phone and flatNo are required' });
   }
   if (!isValidPhoneNumber(phone)) {
     return res.status(400).json({ error: 'Enter a valid mobile number in E.164 format.' });
+  }
+  if (!emailPattern.test(String(email).trim())) {
+    return res.status(400).json({ error: 'Enter a valid email address.' });
+  }
+  if (!isValidFlatNumber(String(flatNo))) {
+    return res.status(400).json({ error: 'Flat must use the format 1A/B1 through 6L/B6.' });
   }
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters.' });
   }
 
   const existing = await queryOne<any>(
-    'SELECT id FROM public.profiles WHERE phone = $1',
-    [phone],
+    'SELECT id FROM public.profiles WHERE phone = $1 OR lower(email) = lower($2)',
+    [phone, email.trim()],
   );
   if (existing) {
     return res.status(409).json({ error: 'A profile already exists for this phone.' });
@@ -58,7 +66,7 @@ router.post('/register', async (req, res) => {
     `INSERT INTO public.profiles (full_name, phone, email, flat_no, password_hash, onboarding_completed)
      VALUES ($1, $2, $3, $4, $5, true)
      RETURNING *`,
-    [fullName, phone, email || null, flatNo || null, passwordHash],
+    [fullName.trim(), phone.trim(), email.trim().toLowerCase(), flatNo.trim().toUpperCase(), passwordHash],
   );
 
   const user = toAuthUser(row);
@@ -66,18 +74,18 @@ router.post('/register', async (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
-  const { phone, password } = req.body || {};
+  const { email, password } = req.body || {};
 
-  if (!phone || !password) {
-    return res.status(400).json({ error: 'Phone and password are required' });
+  if (!email || !password || !emailPattern.test(String(email).trim())) {
+    return res.status(400).json({ error: 'A valid email and password are required' });
   }
 
   const row = await queryOne<any>(
-    'SELECT * FROM public.profiles WHERE phone = $1',
-    [phone],
+    'SELECT * FROM public.profiles WHERE lower(email) = lower($1)',
+    [email.trim()],
   );
   if (!row || !verifyPassword(String(password), row.password_hash)) {
-    return res.status(401).json({ error: 'Invalid phone or password.' });
+    return res.status(401).json({ error: 'Invalid email or password.' });
   }
   if (row.status !== 'ACTIVE') {
     return res.status(403).json({ error: 'Account is not active.' });

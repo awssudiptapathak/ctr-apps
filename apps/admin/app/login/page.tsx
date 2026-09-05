@@ -3,12 +3,11 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChangeEvent, FormEvent, useState } from 'react';
-import { isValidPhoneNumber } from '@ctr-cms/shared';
 import { api, setAdminToken, setAdminUser } from '../../lib/api';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [phone, setPhone] = useState('+919999999999');
+  const [email, setEmail] = useState('sudip241281@gmail.com');
   const [password, setPassword] = useState('Admin@123');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,13 +15,12 @@ export default function AdminLoginPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!phone.trim() || !password.trim()) {
-      setError('Phone and password are required.');
+    if (!email.trim() || !password.trim()) {
+      setError('Email and password are required.');
       return;
     }
-
-    if (!isValidPhoneNumber(phone)) {
-      setError('Enter a valid mobile number in E.164 format.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Enter a valid email address.');
       return;
     }
 
@@ -34,7 +32,7 @@ export default function AdminLoginPage() {
     setError('');
     setLoading(true);
     try {
-      const data = await api.post<{ token: string; user: any }>('/auth/login', { phone, password });
+      const data = await api.post<{ token: string; user: any }>('/auth/login', { email, password });
       setAdminToken(data.token);
       setAdminUser(data.user);
       router.push('/dashboard');
@@ -45,7 +43,7 @@ export default function AdminLoginPage() {
     }
   };
 
-  const updatePhone = (event: ChangeEvent<HTMLInputElement>) => setPhone(event.currentTarget.value);
+  const updateEmail = (event: ChangeEvent<HTMLInputElement>) => setEmail(event.currentTarget.value);
   const updatePassword = (event: ChangeEvent<HTMLInputElement>) => setPassword(event.currentTarget.value);
 
   return (
@@ -91,7 +89,7 @@ export default function AdminLoginPage() {
           </div>
           <div>
             <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: 1.2, color: '#f9d27a' }}>CTR-CMS</div>
-            <div style={{ fontSize: 11, letterSpacing: 1.2, color: '#f4d7a0', textTransform: 'uppercase' }}>Clubtown Residency</div>
+            <div style={{ fontSize: 11, letterSpacing: 1.2, color: '#f4d7a0', textTransform: 'uppercase' }}>Belgharia Club Town Cultural Association</div>
           </div>
         </div>
 
@@ -99,11 +97,11 @@ export default function AdminLoginPage() {
 
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1rem' }}>
           <label style={{ display: 'grid', gap: '0.4rem', color: '#f7e4b1' }}>
-            <span style={{ fontWeight: 600 }}>Phone</span>
+            <span style={{ fontWeight: 600 }}>Email</span>
             <input
-              aria-label="Admin phone"
-              value={phone}
-              onChange={updatePhone}
+              aria-label="Admin email"
+              value={email}
+              onChange={updateEmail}
               style={{
                 padding: '0.85rem 1rem',
                 border: '1px solid rgba(245, 196, 92, 0.5)',
