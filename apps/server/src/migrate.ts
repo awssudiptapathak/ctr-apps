@@ -12,6 +12,7 @@ const MIGRATION_FILES = [
   '007_program_categories_and_judges.sql',
   '008_notifications_gallery_schedule.sql',
   '009_nomination_contact_details.sql',
+  '010_remove_test_user.sql',
 ];
 
 const SEED_FILE = 'seed.sql';
