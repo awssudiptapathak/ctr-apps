@@ -14,14 +14,11 @@ const navLinks = [
   { href: '/users', label: 'Users', adminOnly: true },
 ];
 
-const superAdminLinks = [{ href: '/admin-requests', label: 'Admin requests' }];
-
 export default function AdminNav() {
   const router = useRouter();
   const pathname = usePathname();
   const user = getAdminUser();
-  const visibleLinks =
-    user?.role === 'SUPER_ADMIN' ? [...navLinks, ...superAdminLinks] : navLinks;
+  const visibleLinks = navLinks;
 
   const handleLogout = () => {
     clearAdminAuth();
