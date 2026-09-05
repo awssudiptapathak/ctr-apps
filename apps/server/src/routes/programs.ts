@@ -35,17 +35,22 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
-  const { eventId, name, description, rules, maxParticipants, nominationOpenAt, nominationCloseAt, status } = req.body || {};
-  if (!eventId || !name) {
-    return res.status(400).json({ error: 'eventId and name are required' });
+  try {
+    const { eventId, name, description, rules, maxParticipants, nominationOpenAt, nominationCloseAt, status } = req.body || {};
+    if (!eventId || !name) {
+      return res.status(400).json({ error: 'eventId and name are required' });
+    }
+    const row = await queryOne<any>(
+      `INSERT INTO public.programs (event_id, name, description, rules, max_participants, nomination_open_at, nomination_close_at, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [eventId, name, description || null, rules || null, maxParticipants ?? 1, nominationOpenAt || null, nominationCloseAt || null, status || 'DRAFT'],
+    );
+    return res.status(201).json({ program: mapProgram(row) });
+  } catch (error) {
+    console.error('Failed to create program:', error);
+    return res.status(500).json({ error: 'Failed to create program' });
   }
-  const row = await queryOne<any>(
-    `INSERT INTO public.programs (event_id, name, description, rules, max_participants, nomination_open_at, nomination_close_at, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING *`,
-    [eventId, name, description || null, rules || null, maxParticipants ?? 1, nominationOpenAt || null, nominationCloseAt || null, status || 'DRAFT'],
-  );
-  return res.status(201).json({ program: mapProgram(row) });
 });
 
 router.put('/:id', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
