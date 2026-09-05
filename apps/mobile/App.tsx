@@ -41,6 +41,7 @@ export default function App() {
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [selectedGalleryIndex, setSelectedGalleryIndex] = useState<number | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [nominations, setNominations] = useState<Nomination[]>([]);
   const [nominateTarget, setNominateTarget] = useState<FeedProgram | null>(null);
   const [participantName, setParticipantName] = useState('');
@@ -58,6 +59,10 @@ export default function App() {
   const activeNominationCount = useMemo(
     () => nominations.filter((n) => ['PENDING', 'APPROVED', 'WAITLISTED', 'SLOT_ALLOCATED', 'COMPLETED'].includes(n.status)).length,
     [nominations],
+  );
+  const unreadNotificationCount = useMemo(
+    () => notifications.filter((notification) => !notification.readAt).length,
+    [notifications],
   );
 
   const loadHome = useCallback(() => {
@@ -377,9 +382,19 @@ export default function App() {
               <Text style={styles.brand}>CTR-CMS</Text>
               <Text style={styles.miniLabel}>Belgharia Club Town Cultural Association</Text>
             </View>
-            <Pressable onPress={handleLogout} style={styles.logoutButton}>
-              <Text style={styles.logoutText}>Logout</Text>
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable onPress={() => setShowNotifications(true)} style={styles.notificationButton}>
+                <Text style={styles.notificationIcon}>🔔</Text>
+                {unreadNotificationCount > 0 ? (
+                  <View style={styles.notificationCount}>
+                    <Text style={styles.notificationCountText}>{unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}</Text>
+                  </View>
+                ) : null}
+              </Pressable>
+              <Pressable onPress={handleLogout} style={styles.logoutButton}>
+                <Text style={styles.logoutText}>Logout</Text>
+              </Pressable>
+            </View>
           </View>
 
           <View style={styles.heroCard}>
@@ -392,6 +407,32 @@ export default function App() {
             <View style={styles.statBox}><Text style={styles.statValue}>{String(events.length).padStart(2, '0')}</Text><Text style={styles.statLabel}>Events</Text></View>
             <View style={styles.statBox}><Text style={styles.statValue}>{String(activeNominationCount).padStart(2, '0')}</Text><Text style={styles.statLabel}>Nominations</Text></View>
             <View style={styles.statBox}><Text style={styles.statValue}>{String(programs.filter((p) => p.status === 'PUBLISHED').length).padStart(2, '0')}</Text><Text style={styles.statLabel}>Programs</Text></View>
+          </View>
+
+          <View style={styles.nominationHero}>
+            <View style={styles.nominationHeroCopy}>
+              <Text style={styles.nominationEyebrow}>Featured action</Text>
+              <Text style={styles.nominationTitle}>Nominate for a program</Text>
+              <Text style={styles.nominationSubtitle}>Share your talent and join this year's cultural celebrations.</Text>
+            </View>
+            <Text style={styles.nominationCount}>{openPrograms.length}</Text>
+            <Text style={styles.nominationCountLabel}>open now</Text>
+            <Pressable
+              onPress={() => {
+                const firstProgram = openPrograms[0];
+                if (firstProgram) {
+                  setParticipantName(user?.fullName ?? '');
+                  setParticipantPhone(user?.phone ?? '');
+                  setParticipantFlatNo(user?.flatNo ?? '');
+                  setNominateTarget(firstProgram);
+                  setError('');
+                }
+              }}
+              disabled={openPrograms.length === 0}
+              style={[styles.nominationHeroButton, openPrograms.length === 0 && styles.disabledButton]}
+            >
+              <Text style={styles.nominateText}>{openPrograms.length ? 'Start nomination' : 'No open programs'}</Text>
+            </Pressable>
           </View>
 
           <Text style={styles.sectionLabel}>Upcoming Cultural Events</Text>
@@ -425,24 +466,6 @@ export default function App() {
               </View>
             </View>
           ))}
-
-          <Text style={styles.sectionLabel}>Messages</Text>
-          <View style={styles.card}>
-            {notifications.length === 0 ? (
-              <Text style={styles.metaText}>You have no messages.</Text>
-            ) : (
-              notifications.map((notification) => (
-                <Pressable key={notification.id} onPress={() => markNotificationRead(notification)} style={styles.messageRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.programText}>{notification.title}</Text>
-                    <Text style={styles.metaText}>{notification.body}</Text>
-                    <Text style={styles.messageDate}>{new Date(notification.createdAt).toLocaleString('en-IN')}</Text>
-                  </View>
-                  {!notification.readAt ? <Text style={styles.unreadBadge}>NEW</Text> : null}
-                </Pressable>
-              ))
-            )}
-          </View>
 
           <Text style={styles.sectionLabel}>Live programs</Text>
           <View style={styles.card}>
@@ -548,12 +571,10 @@ export default function App() {
           {galleryImages.length === 0 ? <Text style={styles.metaText}>Festival moments will appear here when the admin uploads them.</Text> : null}
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Programs open for registration</Text>
-            <Text style={styles.metaText}>Nominate yourself or a family member for an open program.</Text>
-
+            <Text style={styles.cardTitle}>Open programs</Text>
+            <Text style={styles.metaText}>Choose a program above to start, or browse all available programs here.</Text>
             <View style={styles.programList}>
-              {openPrograms
-                .map((program) => {
+              {openPrograms.map((program) => {
                   const eligibility = checkNominationEligibility({
                     program: {
                       id: program.id,
@@ -596,9 +617,46 @@ export default function App() {
                       </Pressable>
                     </View>
                   );
-                })}
+              })}
               {openPrograms.length === 0 ? <Text style={styles.metaText}>There are no programs open for registration right now.</Text> : null}
             </View>
+
+            <Modal
+              visible={showNotifications}
+              transparent
+              animationType="slide"
+              onRequestClose={() => setShowNotifications(false)}
+            >
+              <View style={styles.notificationOverlay}>
+                <View style={styles.notificationPanel}>
+                  <View style={styles.notificationPanelHeader}>
+                    <View>
+                      <Text style={styles.cardTitle}>Notifications</Text>
+                      <Text style={styles.metaText}>{unreadNotificationCount ? `${unreadNotificationCount} unread` : 'All caught up'}</Text>
+                    </View>
+                    <Pressable onPress={() => setShowNotifications(false)} style={styles.galleryCloseButton}>
+                      <Text style={styles.galleryCloseText}>Close</Text>
+                    </Pressable>
+                  </View>
+                  <ScrollView>
+                    {notifications.length === 0 ? (
+                      <Text style={styles.metaText}>You have no notifications.</Text>
+                    ) : (
+                      notifications.map((notification) => (
+                        <Pressable key={notification.id} onPress={() => markNotificationRead(notification)} style={[styles.messageRow, !notification.readAt && styles.unreadMessageRow]}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.programText}>{notification.title}</Text>
+                            <Text style={styles.metaText}>{notification.body}</Text>
+                            <Text style={styles.messageDate}>{new Date(notification.createdAt).toLocaleString('en-IN')}</Text>
+                          </View>
+                          {!notification.readAt ? <Text style={styles.unreadBadge}>NEW</Text> : null}
+                        </Pressable>
+                      ))
+                    )}
+                  </ScrollView>
+                </View>
+              </View>
+            </Modal>
           </View>
 
           {nominateTarget ? (
@@ -983,6 +1041,45 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 18,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  notificationButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(249,210,122,0.5)',
+  },
+  notificationIcon: {
+    color: '#fffaf0',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  notificationCount: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ef4444',
+    borderWidth: 2,
+    borderColor: '#261115',
+  },
+  notificationCountText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+  },
   brand: {
     fontSize: 30,
     fontWeight: '800',
@@ -1030,6 +1127,52 @@ const styles = StyleSheet.create({
     color: '#f6e4b7',
     fontSize: 13,
     lineHeight: 18,
+  },
+  nominationHero: {
+    backgroundColor: '#8f3f2f',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: '#f9d27a',
+  },
+  nominationHeroCopy: {
+    marginBottom: 12,
+  },
+  nominationEyebrow: {
+    color: '#ffd98a',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  nominationTitle: {
+    color: '#fff8e7',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  nominationSubtitle: {
+    color: '#ffe7bd',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  nominationCount: {
+    color: '#fff8e7',
+    fontSize: 28,
+    fontWeight: '800',
+  },
+  nominationCountLabel: {
+    color: '#ffe7bd',
+    fontSize: 12,
+    marginBottom: 10,
+  },
+  nominationHeroButton: {
+    alignItems: 'center',
+    backgroundColor: '#d7912b',
+    borderRadius: 999,
+    paddingVertical: 12,
   },
   statsRow: {
     flexDirection: 'row',
@@ -1142,6 +1285,29 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.12)',
+  },
+  unreadMessageRow: {
+    backgroundColor: 'rgba(249,210,122,0.08)',
+  },
+  notificationOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  notificationPanel: {
+    maxHeight: '78%',
+    backgroundColor: '#241116',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(249,210,122,0.5)',
+    padding: 18,
+  },
+  notificationPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   messageDate: {
     color: '#d9c39a',
