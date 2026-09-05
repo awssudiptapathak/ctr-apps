@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { timingSafeEqual } from 'node:crypto';
 import { queryOne, query } from '../db.js';
 import { hashPassword, verifyPassword, signToken, type AuthUser } from '../auth.js';
 import { requireAuth, type AuthedRequest } from '../middleware.js';
@@ -19,6 +20,35 @@ import {
 import { deliverOtp } from '../otpDelivery.js';
 
 const router = Router();
+
+router.post('/recover-super-admin', async (req, res) => {
+  const configuredToken = process.env.SUPER_ADMIN_RECOVERY_TOKEN;
+  const suppliedToken = req.header('x-super-admin-recovery-token');
+  const email = String(req.body?.email || '').trim().toLowerCase();
+
+  if (!configuredToken || !suppliedToken || !emailPattern.test(email)) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const configured = Buffer.from(configuredToken);
+  const supplied = Buffer.from(suppliedToken);
+  if (configured.length !== supplied.length || !timingSafeEqual(configured, supplied)) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const row = await queryOne<{ id: string; email: string }>(
+    `UPDATE public.profiles
+        SET role = 'SUPER_ADMIN', status = 'ACTIVE'
+      WHERE lower(email) = $1
+      RETURNING id, email`,
+    [email],
+  );
+  if (!row) {
+    return res.status(404).json({ error: 'Account not found' });
+  }
+
+  return res.json({ ok: true, email: row.email });
+});
 
 function toAuthUser(row: any): AuthUser {
   return {
