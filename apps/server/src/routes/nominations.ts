@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query, queryOne } from '../db.js';
 import { requireAuth, requireRole, type AuthedRequest } from '../middleware.js';
 import { checkNominationEligibility } from '@ctr-cms/shared';
+import { isValidPhoneNumber, isValidFlatNumber } from '@ctr-cms/shared';
 import { createNotification } from './notifications.js';
 
 const router = Router();
@@ -25,6 +26,8 @@ function mapNomination(row: any) {
     programId: row.program_id,
     userId: row.user_id,
     participantName: row.participant_name,
+    participantPhone: row.participant_phone,
+    participantFlatNo: row.participant_flat_no,
     participantAge: row.participant_age,
     performanceMode: row.performance_mode,
     performanceType: row.performance_type,
@@ -73,11 +76,17 @@ router.get('/', requireAuth, async (req: AuthedRequest, res) => {
 
 router.post('/', requireAuth, async (req: AuthedRequest, res) => {
   const {
-    programId, participantName, participantAge, performanceMode, performanceType,
+    programId, participantName, participantPhone, participantFlatNo, participantAge, performanceMode, performanceType,
     probableTimeMinutes, performanceSummary, photoData,
   } = req.body || {};
-  if (!programId || !participantName || !participantAge || !performanceMode || !performanceType || !probableTimeMinutes || !performanceSummary) {
-    return res.status(400).json({ error: 'All participant and performance fields are required' });
+  if (!programId || !participantName || !participantPhone || !participantFlatNo || !participantAge || !performanceMode || !performanceType || !probableTimeMinutes || !performanceSummary) {
+    return res.status(400).json({ error: 'All participant, contact, and performance fields are required' });
+  }
+  if (!isValidPhoneNumber(String(participantPhone))) {
+    return res.status(400).json({ error: 'Enter an Indian mobile number in +91XXXXXXXXXX format.' });
+  }
+  if (!isValidFlatNumber(String(participantFlatNo))) {
+    return res.status(400).json({ error: 'Flat must use the format 1A/B1 through 6L/B6.' });
   }
   if (!['SOLO', 'GROUP'].includes(performanceMode) || !['DANCE', 'SINGING', 'DRAMA', 'RECITATION', 'INSTRUMENT'].includes(performanceType)) {
     return res.status(400).json({ error: 'Invalid performance mode or type' });
@@ -112,6 +121,7 @@ router.post('/', requireAuth, async (req: AuthedRequest, res) => {
       nominationCloseAt: program.nomination_close_at,
     },
     existingNominations: existingRows.map((row: any) => ({ programId: row.program_id, status: row.status })),
+    unlimited: req.role === 'ADMIN' || req.role === 'SUPER_ADMIN',
   });
 
   if (!eligibility.ok) {
@@ -120,17 +130,17 @@ router.post('/', requireAuth, async (req: AuthedRequest, res) => {
         ? 'Nominations are not open for this program.'
         : eligibility.reason === 'WINDOW_CLOSED'
           ? 'The nomination window for this program is closed.'
-          : 'You already have an active nomination for this program.';
+          : 'You can submit a maximum of 2 nominations for this program.';
     return res.status(409).json({ error: message });
   }
 
   const row = await queryOne<any>(
     `INSERT INTO public.nominations
-      (program_id, user_id, participant_name, participant_age, performance_mode, performance_type,
+      (program_id, user_id, participant_name, participant_phone, participant_flat_no, participant_age, performance_mode, performance_type,
        probable_time_minutes, performance_summary, photo_data)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
-    [programId, req.userId, participantName.trim(), age, performanceMode, performanceType,
+    [programId, req.userId, participantName.trim(), String(participantPhone).trim(), String(participantFlatNo).trim().toUpperCase(), age, performanceMode, performanceType,
       minutes, performanceSummary.trim(), photoData || null],
   );
   return res.status(201).json({ nomination: mapNomination(row) });
@@ -154,7 +164,9 @@ router.get('/participants', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), as
   return res.json({ participants: rows.map((row) => ({
     ...mapNomination(row),
     residentName: row.resident_name,
-    phone: row.phone,
+    phone: row.participant_phone || row.phone,
+    participantPhone: row.participant_phone || row.phone,
+    participantFlatNo: row.participant_flat_no || row.flat_no,
     email: row.email,
     programName: row.program_name,
     category: row.category,

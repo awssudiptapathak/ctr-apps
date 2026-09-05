@@ -50,6 +50,9 @@ router.post('/', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, r
     return res.status(201).json({ program: mapProgram(row) });
   } catch (error) {
     console.error('Failed to create program:', error);
+    if (isProgramWindowValidationError(error)) {
+      return res.status(400).json({ error: 'Nomination closing time must be before the event starts.' });
+    }
     return res.status(500).json({ error: 'Failed to create program' });
   }
 });
@@ -58,26 +61,41 @@ router.put('/:id', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req,
   const existing = await queryOne<any>('SELECT * FROM public.programs WHERE id = $1', [req.params.id]);
   if (!existing) return res.status(404).json({ error: 'Program not found' });
   const b = req.body || {};
-  const row = await queryOne<any>(
-    `UPDATE public.programs SET
-       event_id = COALESCE($2, event_id),
-       name = COALESCE($3, name),
-       description = COALESCE($4, description),
-       rules = COALESCE($5, rules),
-       max_participants = COALESCE($6, max_participants),
-       nomination_open_at = COALESCE($7, nomination_open_at),
-       nomination_close_at = COALESCE($8, nomination_close_at),
-       status = COALESCE($9, status)
-      ,category = COALESCE($10, category)
-     WHERE id = $1 RETURNING *`,
-    [req.params.id, b.eventId, b.name, b.description, b.rules, b.maxParticipants, b.nominationOpenAt, b.nominationCloseAt, b.status, b.category === 'COMPETITION' ? 'COMPETITION' : b.category === 'PERFORMANCE' ? 'PERFORMANCE' : null],
-  );
-  return res.json({ program: mapProgram(row) });
+  try {
+    const row = await queryOne<any>(
+      `UPDATE public.programs SET
+         event_id = COALESCE($2, event_id),
+         name = COALESCE($3, name),
+         description = COALESCE($4, description),
+         rules = COALESCE($5, rules),
+         max_participants = COALESCE($6, max_participants),
+         nomination_open_at = COALESCE($7, nomination_open_at),
+         nomination_close_at = COALESCE($8, nomination_close_at),
+         status = COALESCE($9, status)
+        ,category = COALESCE($10, category)
+       WHERE id = $1 RETURNING *`,
+      [req.params.id, b.eventId, b.name, b.description, b.rules, b.maxParticipants, b.nominationOpenAt, b.nominationCloseAt, b.status, b.category === 'COMPETITION' ? 'COMPETITION' : b.category === 'PERFORMANCE' ? 'PERFORMANCE' : null],
+    );
+    return res.json({ program: mapProgram(row) });
+  } catch (error) {
+    console.error('Failed to update program:', error);
+    if (isProgramWindowValidationError(error)) {
+      return res.status(400).json({ error: 'Nomination closing time must be before the event starts.' });
+    }
+    return res.status(500).json({ error: 'Failed to update program' });
+  }
 });
 
 router.delete('/:id', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   await query('DELETE FROM public.programs WHERE id = $1', [req.params.id]);
   return res.status(204).end();
 });
+
+function isProgramWindowValidationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: string; message?: string };
+  return candidate.code === 'P0001'
+    && candidate.message === 'program nomination window must end before the event starts';
+}
 
 export default router;

@@ -61,6 +61,18 @@ export interface ProgramRecord {
   updatedAt: string;
 }
 
+export type ReminderFrequency = 'AD_HOC' | 'WEEKLY' | 'DAILY';
+export type ReminderType = 'EVENT_REMINDER' | 'PROGRAM_DEADLINE' | 'NOMINATION_CLOSING' | 'SLOT_CONFIRMATION' | 'ANNOUNCEMENT';
+
+export interface GalleryImage {
+  id: string;
+  title: string | null;
+  caption: string | null;
+  imageUrl: string;
+  sortOrder: number;
+  createdAt: string;
+}
+
 export interface NominationRecord {
   id: string;
   programId: string;
@@ -205,7 +217,7 @@ export function isNominationWindowOpen(
 
 export type NominationSubmitCheck =
   | { ok: true }
-  | { ok: false; reason: 'NOT_PUBLISHED' | 'WINDOW_CLOSED' | 'ALREADY_NOMINATED' };
+  | { ok: false; reason: 'NOT_PUBLISHED' | 'WINDOW_CLOSED' | 'MAX_NOMINATIONS_REACHED' };
 
 export interface NominationEligibilityProgram {
   id: string;
@@ -217,12 +229,14 @@ export interface NominationEligibilityProgram {
 export interface NominationEligibilityInput {
   program: NominationEligibilityProgram;
   existingNominations: Array<{ programId: string; status: string }>;
+  unlimited?: boolean;
   at?: Date;
 }
 
 export function checkNominationEligibility({
   program,
   existingNominations,
+  unlimited = false,
   at = new Date(),
 }: NominationEligibilityInput): NominationSubmitCheck {
   if (program.status !== 'PUBLISHED') {
@@ -233,12 +247,9 @@ export function checkNominationEligibility({
     return { ok: false, reason: 'WINDOW_CLOSED' };
   }
 
-  const alreadyNominated = existingNominations.some(
-    (nomination) =>
-      nomination.programId === program.id && isDuplicateActiveNomination(nomination.status),
-  );
-  if (alreadyNominated) {
-    return { ok: false, reason: 'ALREADY_NOMINATED' };
+  const nominationCount = existingNominations.filter((nomination) => nomination.programId === program.id).length;
+  if (!unlimited && nominationCount >= 2) {
+    return { ok: false, reason: 'MAX_NOMINATIONS_REACHED' };
   }
 
   return { ok: true };
@@ -405,12 +416,15 @@ export function allocateSlotsForProgram(
 export type NotificationChannel = 'EMAIL' | 'SMS' | 'WHATSAPP' | 'IN_APP';
 
 export interface ReminderTemplate {
-  type: 'EVENT_REMINDER' | 'PROGRAM_DEADLINE' | 'SLOT_CONFIRMATION';
+  type: ReminderType;
   channel: NotificationChannel;
   title: string;
   body: string;
   sendAt: string;
   audience: 'RESIDENT' | 'ADMIN' | 'ALL';
+  frequency?: ReminderFrequency;
+  eventId?: string | null;
+  programId?: string | null;
 }
 
 export function createReminderTemplate(
@@ -420,6 +434,9 @@ export function createReminderTemplate(
   body: string,
   sendAt: string,
   audience: ReminderTemplate['audience'] = 'RESIDENT',
+  frequency: ReminderFrequency = 'AD_HOC',
+  eventId: string | null = null,
+  programId: string | null = null,
 ): ReminderTemplate {
   return {
     type,
@@ -428,6 +445,9 @@ export function createReminderTemplate(
     body,
     sendAt,
     audience,
+    frequency,
+    eventId,
+    programId,
   };
 }
 

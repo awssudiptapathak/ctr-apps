@@ -11,6 +11,7 @@ const navLinks = [
   { href: '/schedule', label: 'Schedule' },
   { href: '/participants', label: 'Participants' },
   { href: '/notifications', label: 'Notifications' },
+  { href: '/gallery', label: 'Gallery' },
   { href: '/users', label: 'Users', adminOnly: true },
 ];
 

@@ -10,6 +10,8 @@ const MIGRATION_FILES = [
   '005_add_otp_codes.sql',
   '006_participant_details.sql',
   '007_program_categories_and_judges.sql',
+  '008_notifications_gallery_schedule.sql',
+  '009_nomination_contact_details.sql',
 ];
 
 const SEED_FILE = 'seed.sql';

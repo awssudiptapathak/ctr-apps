@@ -1,24 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, AppState, Image, ImageBackground, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, Image, ImageBackground, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { isValidPhoneNumber, isValidFlatNumber, checkNominationEligibility } from '@ctr-cms/shared';
 import { api, setAuthToken } from './src/api';
-import type { FeedEvent, FeedProgram, AuthUser, Nomination } from './src/types';
+import type { FeedEvent, FeedProgram, FeedSchedule, GalleryImage, AppNotification, AuthUser, Nomination } from './src/types';
 
 type Screen = 'login' | 'otp' | 'signup' | 'home';
-
-const galleryImages = [
-  require('./assets/celebrations.jpg'),
-  require('./assets/puja-preparation.jpg'),
-  require('./assets/dhak-drums.jpg'),
-  require('./assets/idol-shailaputri.jpg'),
-  require('./assets/community.jpg'),
-  require('./assets/idol-katyani.jpg'),
-  require('./assets/13-years.jpg'),
-  require('./assets/idol-mahagouri.jpg'),
-  require('./assets/ilove-ctr.jpg'),
-];
 
 const eventThumbnails = [
   require('./assets/hero-festival.jpg'),
@@ -46,9 +34,18 @@ export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [events, setEvents] = useState<FeedEvent[]>([]);
   const [programs, setPrograms] = useState<FeedProgram[]>([]);
+  const [livePrograms, setLivePrograms] = useState<FeedProgram[]>([]);
+  const [todaySchedule, setTodaySchedule] = useState<FeedSchedule[]>([]);
+  const [upcomingPrograms, setUpcomingPrograms] = useState<FeedProgram[]>([]);
+  const [openPrograms, setOpenPrograms] = useState<FeedProgram[]>([]);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [selectedGalleryIndex, setSelectedGalleryIndex] = useState<number | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [nominations, setNominations] = useState<Nomination[]>([]);
   const [nominateTarget, setNominateTarget] = useState<FeedProgram | null>(null);
   const [participantName, setParticipantName] = useState('');
+  const [participantPhone, setParticipantPhone] = useState('');
+  const [participantFlatNo, setParticipantFlatNo] = useState('');
   const [participantAge, setParticipantAge] = useState('');
   const [performanceMode, setPerformanceMode] = useState<'SOLO' | 'GROUP'>('SOLO');
   const [performanceType, setPerformanceType] = useState('DANCE');
@@ -65,13 +62,21 @@ export default function App() {
 
   const loadHome = useCallback(() => {
     setLoading(true);
-    const feedPromise = api.get<{ events: FeedEvent[]; programs: FeedProgram[] }>('/feed');
+    const feedPromise = api.get<{ events: FeedEvent[]; programs: FeedProgram[]; livePrograms: FeedProgram[]; todaySchedule: FeedSchedule[]; upcomingPrograms: FeedProgram[]; openPrograms: FeedProgram[] }>('/feed');
     const nominationPromise = api.get<{ nominations: Nomination[] }>('/nominations');
-    Promise.all([feedPromise, nominationPromise])
-      .then(([feed, nom]) => {
+    const notificationPromise = api.get<{ notifications: AppNotification[] }>('/notifications');
+    const galleryPromise = api.get<{ images: GalleryImage[] }>('/gallery');
+    Promise.all([feedPromise, nominationPromise, notificationPromise, galleryPromise])
+      .then(([feed, nom, inbox, gallery]) => {
         setEvents(feed.events);
         setPrograms(feed.programs);
+        setLivePrograms(feed.livePrograms || []);
+        setTodaySchedule(feed.todaySchedule || []);
+        setUpcomingPrograms(feed.upcomingPrograms || []);
+        setOpenPrograms(feed.openPrograms || []);
         setNominations(nom.nominations);
+        setNotifications(inbox.notifications || []);
+        setGalleryImages(gallery.images || []);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -250,14 +255,27 @@ export default function App() {
     setUser(null);
     setError('');
     setNominations([]);
+    setNotifications([]);
     setNominateTarget(null);
     setParticipantName('');
     setScreen('login');
   };
 
+  const markNotificationRead = async (notification: AppNotification) => {
+    if (notification.readAt) return;
+    try {
+      await api.put(`/notifications/${notification.id}/read`);
+      setNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item));
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
   const handleCloseNominate = () => {
     setNominateTarget(null);
     setParticipantName('');
+    setParticipantPhone('');
+    setParticipantFlatNo('');
     setParticipantAge('');
     setProbableTimeMinutes('');
     setPerformanceSummary('');
@@ -271,6 +289,14 @@ export default function App() {
     const minutes = Number(probableTimeMinutes);
     if (!participantName.trim() || !Number.isInteger(age) || age < 1 || age > 120) {
       setError('Enter a valid participant name and age.');
+      return;
+    }
+    if (!isValidPhoneNumber(participantPhone)) {
+      setError('Enter an Indian mobile number in +91XXXXXXXXXX format.');
+      return;
+    }
+    if (!isValidFlatNumber(participantFlatNo)) {
+      setError('Flat must use the format 1A/B1 through 6L/B6.');
       return;
     }
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > (performanceMode === 'GROUP' ? 20 : 10)) {
@@ -291,6 +317,7 @@ export default function App() {
         nominationCloseAt: program.nominationCloseAt,
       },
       existingNominations: nominations.map((n) => ({ programId: n.programId, status: n.status })),
+      unlimited: user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN',
     });
     if (!check.ok) {
       setError(
@@ -298,7 +325,7 @@ export default function App() {
           ? 'Nominations are not open for this program.'
           : check.reason === 'WINDOW_CLOSED'
             ? 'The nomination window for this program is closed.'
-            : 'You already have an active nomination for this program.',
+             : 'You can submit a maximum of 2 nominations for this program.',
       );
       return;
     }
@@ -307,7 +334,8 @@ export default function App() {
     setLoading(true);
     try {
       await api.post('/nominations', {
-        programId: program.id, participantName: participantName.trim(), participantAge: age,
+        programId: program.id, participantName: participantName.trim(), participantPhone: participantPhone.trim(),
+        participantFlatNo: participantFlatNo.trim().toUpperCase(), participantAge: age,
         performanceMode, performanceType, probableTimeMinutes: minutes,
         performanceSummary: performanceSummary.trim(), photoData,
       });
@@ -398,22 +426,133 @@ export default function App() {
             </View>
           ))}
 
+          <Text style={styles.sectionLabel}>Messages</Text>
+          <View style={styles.card}>
+            {notifications.length === 0 ? (
+              <Text style={styles.metaText}>You have no messages.</Text>
+            ) : (
+              notifications.map((notification) => (
+                <Pressable key={notification.id} onPress={() => markNotificationRead(notification)} style={styles.messageRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.programText}>{notification.title}</Text>
+                    <Text style={styles.metaText}>{notification.body}</Text>
+                    <Text style={styles.messageDate}>{new Date(notification.createdAt).toLocaleString('en-IN')}</Text>
+                  </View>
+                  {!notification.readAt ? <Text style={styles.unreadBadge}>NEW</Text> : null}
+                </Pressable>
+              ))
+            )}
+          </View>
+
+          <Text style={styles.sectionLabel}>Live programs</Text>
+          <View style={styles.card}>
+            {livePrograms.length === 0 ? (
+              <Text style={styles.metaText}>No programs are live right now.</Text>
+            ) : (
+              livePrograms.map((program) => (
+                <View key={program.id} style={styles.programRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.programText}>• {program.name}</Text>
+                    <Text style={styles.metaText}>{program.event?.title ?? 'Current event'}</Text>
+                  </View>
+                  <Text style={styles.tag}>LIVE</Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          <Text style={styles.sectionLabel}>Today's schedule</Text>
+          <View style={styles.card}>
+            {todaySchedule.length === 0 ? (
+              <Text style={styles.metaText}>No performances scheduled for today.</Text>
+            ) : (
+              todaySchedule.map((slot) => (
+                <View key={slot.id} style={styles.programRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.programText}>• {slot.programName}</Text>
+                    <Text style={styles.metaText}>
+                      {new Date(slot.startAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
+                      {' – '}
+                      {new Date(slot.endAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
+                      {slot.venue ? ` • ${slot.venue}` : ''}
+                    </Text>
+                  </View>
+                  <Text style={styles.tag}>{slot.status}</Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          <Text style={styles.sectionLabel}>Upcoming programs</Text>
+          <View style={styles.card}>
+            {upcomingPrograms.length === 0 ? (
+              <Text style={styles.metaText}>No upcoming programs have been published.</Text>
+            ) : (
+              upcomingPrograms.slice(0, 8).map((program) => (
+                <View key={program.id} style={styles.programRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.programText}>• {program.name}</Text>
+                    <Text style={styles.metaText}>
+                      {program.event?.title ?? 'Upcoming event'}
+                      {program.event?.startAt ? ` • ${new Date(program.event.startAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+
           <Text style={styles.sectionLabel}>Festival Moments</Text>
           <View style={styles.galleryGrid}>
             {galleryImages.map((image, idx) => (
-              <View key={idx} style={[styles.galleryTile, { height: idx % 4 === 0 ? 190 : 150 }]}>
-                <Image source={image} style={styles.galleryImage} resizeMode="cover" />
+              <View key={image.id} style={[styles.galleryTile, { height: idx % 4 === 0 ? 190 : 150 }]}>
+                <Pressable onPress={() => setSelectedGalleryIndex(idx)} style={styles.galleryImageButton}>
+                  <Image source={{ uri: image.imageUrl }} style={styles.galleryImage} resizeMode="cover" />
+                </Pressable>
+                {image.caption || image.title ? <Text style={styles.galleryCaption}>{image.title || image.caption}</Text> : null}
               </View>
             ))}
           </View>
+          <Modal
+            visible={selectedGalleryIndex !== null}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setSelectedGalleryIndex(null)}
+          >
+            <View style={styles.galleryViewer}>
+              <Pressable style={styles.galleryCloseButton} onPress={() => setSelectedGalleryIndex(null)}>
+                <Text style={styles.galleryCloseText}>Close</Text>
+              </Pressable>
+              {selectedGalleryIndex !== null && galleryImages[selectedGalleryIndex] ? (
+                <>
+                  <Image source={{ uri: galleryImages[selectedGalleryIndex].imageUrl }} style={styles.galleryExpandedImage} resizeMode="contain" />
+                  <View style={styles.galleryNavigation}>
+                    <Pressable
+                      onPress={() => setSelectedGalleryIndex((selectedGalleryIndex - 1 + galleryImages.length) % galleryImages.length)}
+                      style={styles.galleryNavButton}
+                    >
+                      <Text style={styles.galleryNavText}>Previous</Text>
+                    </Pressable>
+                    <Text style={styles.galleryCounter}>{selectedGalleryIndex + 1} / {galleryImages.length}</Text>
+                    <Pressable
+                      onPress={() => setSelectedGalleryIndex((selectedGalleryIndex + 1) % galleryImages.length)}
+                      style={styles.galleryNavButton}
+                    >
+                      <Text style={styles.galleryNavText}>Next</Text>
+                    </Pressable>
+                  </View>
+                </>
+              ) : null}
+            </View>
+          </Modal>
+          {galleryImages.length === 0 ? <Text style={styles.metaText}>Festival moments will appear here when the admin uploads them.</Text> : null}
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Open programs to nominate</Text>
+            <Text style={styles.cardTitle}>Programs open for registration</Text>
             <Text style={styles.metaText}>Nominate yourself or a family member for an open program.</Text>
 
             <View style={styles.programList}>
-              {programs
-                .filter((program) => program.status === 'PUBLISHED')
+              {openPrograms
                 .map((program) => {
                   const eligibility = checkNominationEligibility({
                     program: {
@@ -423,6 +562,7 @@ export default function App() {
                       nominationCloseAt: program.nominationCloseAt,
                     },
                     existingNominations: nominations.map((n) => ({ programId: n.programId, status: n.status })),
+                    unlimited: user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN',
                   });
                   return (
                     <View key={program.id} style={styles.programRow}>
@@ -438,12 +578,14 @@ export default function App() {
                         onPress={() => {
                           if (eligibility.ok) {
                             setParticipantName(user?.fullName ?? '');
+                            setParticipantPhone(user?.phone ?? '');
+                            setParticipantFlatNo(user?.flatNo ?? '');
                             setNominateTarget(program);
                             setError('');
                           } else {
                             setError(
-                              eligibility.reason === 'ALREADY_NOMINATED'
-                                ? 'You already have an active nomination for this program.'
+                                eligibility.reason === 'MAX_NOMINATIONS_REACHED'
+                                ? 'You can submit a maximum of 2 nominations for this program.'
                                 : 'This program is not accepting nominations right now.',
                             );
                           }
@@ -455,6 +597,7 @@ export default function App() {
                     </View>
                   );
                 })}
+              {openPrograms.length === 0 ? <Text style={styles.metaText}>There are no programs open for registration right now.</Text> : null}
             </View>
           </View>
 
@@ -467,6 +610,8 @@ export default function App() {
                 style={styles.input}
                 placeholder="Participant name"
               />
+              <TextInput value={participantPhone} onChangeText={setParticipantPhone} style={styles.input} placeholder="Mobile (+91XXXXXXXXXX)" keyboardType="phone-pad" />
+              <TextInput value={participantFlatNo} onChangeText={setParticipantFlatNo} style={styles.input} placeholder="Flat / Block (e.g. 1A/B1)" autoCapitalize="characters" />
               <TextInput value={participantAge} onChangeText={setParticipantAge} style={styles.input} placeholder="Age" keyboardType="number-pad" />
               <Text style={styles.fieldLabel}>Performance</Text>
               <View style={styles.choiceRow}>
@@ -935,6 +1080,82 @@ const styles = StyleSheet.create({
   galleryImage: {
     width: '100%',
     height: '100%',
+  },
+  galleryImageButton: {
+    flex: 1,
+  },
+  galleryCaption: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 8,
+    color: '#fffaf0',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    fontSize: 12,
+  },
+  galleryViewer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.96)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  galleryCloseButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  galleryCloseText: {
+    color: '#fffaf0',
+    fontWeight: '700',
+  },
+  galleryExpandedImage: {
+    flex: 1,
+    width: '100%',
+    marginVertical: 16,
+  },
+  galleryNavigation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  galleryNavButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  galleryNavText: {
+    color: '#fffaf0',
+    fontWeight: '700',
+  },
+  galleryCounter: {
+    color: '#fffaf0',
+    fontWeight: '700',
+  },
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.12)',
+  },
+  messageDate: {
+    color: '#d9c39a',
+    fontSize: 11,
+    marginTop: 4,
+  },
+  unreadBadge: {
+    color: '#1f160b',
+    backgroundColor: '#f9d27a',
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    fontSize: 10,
+    fontWeight: '800',
   },
   card: {
     backgroundColor: 'rgba(20, 11, 14, 0.78)',

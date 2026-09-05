@@ -6,10 +6,11 @@ import authRoutes from './routes/auth.js';
 import eventsRoutes from './routes/events.js';
 import programsRoutes from './routes/programs.js';
 import nominationsRoutes from './routes/nominations.js';
-import notificationsRoutes from './routes/notifications.js';
+import notificationsRoutes, { processDueNotificationSchedules } from './routes/notifications.js';
 import usersRoutes from './routes/users.js';
 import dashboardRoutes from './routes/dashboard.js';
 import publicRoutes from './routes/public.js';
+import galleryRoutes from './routes/gallery.js';
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api/events', eventsRoutes);
 app.use('/api/programs', programsRoutes);
 app.use('/api/nominations', nominationsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/gallery', galleryRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api', publicRoutes);
@@ -42,4 +44,14 @@ app.listen(config.port, async () => {
   } catch (e: any) {
     console.error('Migration error:', e.message);
   }
+  const processReminders = async () => {
+    try {
+      const processed = await processDueNotificationSchedules();
+      if (processed > 0) console.log(`Processed ${processed} scheduled notification(s).`);
+    } catch (error) {
+      console.error('Failed to process scheduled notifications:', error);
+    }
+  };
+  await processReminders();
+  setInterval(processReminders, 60_000);
 });

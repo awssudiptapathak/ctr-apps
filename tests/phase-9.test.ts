@@ -51,35 +51,38 @@ test('Phase 9: nomination is rejected after the window closes', () => {
   assert.deepEqual(result, { ok: false, reason: 'WINDOW_CLOSED' });
 });
 
-test('Phase 9: nomination is rejected when the resident already has an active nomination for that program', () => {
+test('Phase 9: a resident may submit a second nomination for the same program', () => {
   const result = checkNominationEligibility({
     program: publishedOpenProgram(),
     existingNominations: [{ programId: 'prog-1', status: 'PENDING' }],
     at: now,
   });
-  assert.deepEqual(result, { ok: false, reason: 'ALREADY_NOMINATED' });
+  assert.deepEqual(result, { ok: true });
 });
 
-test('Phase 9: a duplicate nomination is still rejected for approved/waitlisted/slot-allocated statuses', () => {
-  for (const status of ['APPROVED', 'WAITLISTED', 'SLOT_ALLOCATED', 'COMPLETED']) {
-    const result = checkNominationEligibility({
-      program: publishedOpenProgram(),
-      existingNominations: [{ programId: 'prog-1', status }],
-      at: now,
-    });
-    assert.deepEqual(result, { ok: false, reason: 'ALREADY_NOMINATED' }, `status ${status}`);
-  }
+test('Phase 9: a resident is rejected after two nominations for the same program', () => {
+  const result = checkNominationEligibility({
+    program: publishedOpenProgram(),
+    existingNominations: [
+      { programId: 'prog-1', status: 'PENDING' },
+      { programId: 'prog-1', status: 'APPROVED' },
+    ],
+    at: now,
+  });
+  assert.deepEqual(result, { ok: false, reason: 'MAX_NOMINATIONS_REACHED' });
 });
 
-test('Phase 9: a rejected or cancelled prior nomination does not block a new nomination', () => {
-  for (const status of ['REJECTED', 'CANCELLED']) {
-    const result = checkNominationEligibility({
-      program: publishedOpenProgram(),
-      existingNominations: [{ programId: 'prog-1', status }],
-      at: now,
-    });
-    assert.deepEqual(result, { ok: true }, `status ${status}`);
-  }
+test('Phase 9: admin users are not limited by the two-nomination resident cap', () => {
+  const result = checkNominationEligibility({
+    program: publishedOpenProgram(),
+    existingNominations: [
+      { programId: 'prog-1', status: 'PENDING' },
+      { programId: 'prog-1', status: 'APPROVED' },
+    ],
+    unlimited: true,
+    at: now,
+  });
+  assert.deepEqual(result, { ok: true });
 });
 
 test('Phase 9: an active nomination for a different program does not block this one', () => {
