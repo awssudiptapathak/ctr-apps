@@ -44,6 +44,17 @@ export interface EmailSendResult {
   error?: string;
 }
 
+interface GmailTokenResponse {
+  access_token?: string;
+  error?: string;
+  error_description?: string;
+}
+
+interface GmailSendResponse {
+  id?: string;
+  error?: { message?: string };
+}
+
 export async function resolveProfileEmail(phone: string): Promise<string | null> {
   const rows = await query<{ email: string | null }>(
     'SELECT email FROM public.profiles WHERE phone = $1',
@@ -52,7 +63,99 @@ export async function resolveProfileEmail(phone: string): Promise<string | null>
   return rows[0]?.email || null;
 }
 
+function getGmailConfig(): {
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+  sender: string;
+} | null {
+  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.GMAIL_CLIENT_ID || '';
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.GMAIL_CLIENT_SECRET || '';
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN || process.env.GMAIL_REFRESH_TOKEN || '';
+  const sender = process.env.EMAIL_FROM || process.env.GMAIL_USER || process.env.SMTP_USER || '';
+  if (!clientId || !clientSecret || !refreshToken || !sender) {
+    return null;
+  }
+  return { clientId, clientSecret, refreshToken, sender };
+}
+
+function encodeBase64Url(value: string): string {
+  return Buffer.from(value, 'utf8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+export async function sendViaGmail(
+  input: DeliverOtpInput,
+  fetchImpl: typeof fetch = fetch,
+): Promise<EmailSendResult> {
+  const config = getGmailConfig();
+  if (!config) {
+    return { sent: false, error: 'Gmail API credentials are not configured' };
+  }
+
+  const recipient = input.email || (await resolveProfileEmail(input.phone));
+  if (!recipient) {
+    return { sent: false, error: 'No email on file for this phone' };
+  }
+
+  try {
+    const tokenResponse = await fetchImpl('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        refresh_token: config.refreshToken,
+        grant_type: 'refresh_token',
+      }),
+    });
+    const tokenBody = (await tokenResponse.json()) as GmailTokenResponse;
+    if (!tokenResponse.ok || !tokenBody.access_token) {
+      return {
+        sent: false,
+        error: tokenBody.error_description || tokenBody.error || `Gmail token request failed (${tokenResponse.status})`,
+      };
+    }
+
+    const text = `Your CTR-CMS OTP is ${input.code}. It is valid for ${Math.floor(OTP_TTL_MS / 60000)} minutes.`;
+    const rawMessage = [
+      `From: ${config.sender}`,
+      `To: ${recipient}`,
+      'Subject: Your CTR-CMS verification code',
+      'MIME-Version: 1.0',
+      'Content-Type: text/plain; charset=UTF-8',
+      '',
+      text,
+    ].join('\r\n');
+    const sendResponse = await fetchImpl('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${tokenBody.access_token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ raw: encodeBase64Url(rawMessage) }),
+    });
+    const sendBody = (await sendResponse.json()) as GmailSendResponse;
+    if (!sendResponse.ok || !sendBody.id) {
+      return {
+        sent: false,
+        error: sendBody.error?.message || `Gmail send failed (${sendResponse.status})`,
+      };
+    }
+    return { sent: true, providerMessageId: sendBody.id, email: recipient };
+  } catch (error) {
+    return { sent: false, error: error instanceof Error ? error.message : 'Gmail API request failed' };
+  }
+}
+
 export async function sendViaEmail(input: DeliverOtpInput): Promise<EmailSendResult> {
+  if (getGmailConfig()) {
+    return sendViaGmail(input);
+  }
+
   const user = process.env.SMTP_USER || '';
   const pass = process.env.SMTP_PASS || '';
   const from = process.env.EMAIL_FROM || user;
