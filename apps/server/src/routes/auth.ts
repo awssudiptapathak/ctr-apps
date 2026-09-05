@@ -181,7 +181,7 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'A valid email and password are required' });
   }
 
-  const row = await queryOne<any>(
+  const rows = await query<any>(
     `SELECT * FROM public.profiles
        WHERE lower(email) = lower($1)
        ORDER BY CASE role
@@ -189,10 +189,11 @@ router.post('/login', async (req, res) => {
          WHEN 'ADMIN' THEN 1
          ELSE 2
        END, created_at DESC
-       LIMIT 1`,
+      `,
     [email.trim()],
   );
-  if (!row || !verifyPassword(String(password), row.password_hash)) {
+  const row = rows.find((candidate) => verifyPassword(String(password), candidate.password_hash));
+  if (!row) {
     return res.status(401).json({ error: 'Invalid email or password.' });
   }
   if (row.status !== 'ACTIVE') {
