@@ -81,7 +81,7 @@ router.post('/login', async (req, res) => {
   }
 
   const row = await queryOne<any>(
-    'SELECT * FROM public.profiles WHERE lower(email) = lower($1)',
+    'SELECT * FROM public.profiles WHERE lower(email) = lower($1) ORDER BY created_at DESC LIMIT 1',
     [email.trim()],
   );
   if (!row || !verifyPassword(String(password), row.password_hash)) {

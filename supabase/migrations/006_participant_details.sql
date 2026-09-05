@@ -1,8 +1,19 @@
-ALTER TABLE public.profiles
-  ADD CONSTRAINT profiles_email_format_check
-  CHECK (email IS NULL OR email ~* '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'profiles_email_format_check'
+      AND conrelid = 'public.profiles'::regclass
+  ) THEN
+    ALTER TABLE public.profiles
+      ADD CONSTRAINT profiles_email_format_check
+      CHECK (email IS NULL OR email ~* '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$');
+  END IF;
+END $$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS profiles_email_unique
+-- Existing installations may contain duplicate legacy emails. Keep the
+-- migration non-blocking and let registration reject future duplicates.
+CREATE INDEX IF NOT EXISTS profiles_email_lookup
   ON public.profiles (lower(email))
   WHERE email IS NOT NULL;
 
@@ -14,21 +25,25 @@ ALTER TABLE public.nominations
   ADD COLUMN IF NOT EXISTS performance_summary text,
   ADD COLUMN IF NOT EXISTS photo_data text;
 
-ALTER TABLE public.nominations
-  ADD CONSTRAINT nominations_participant_age_check
-  CHECK (participant_age IS NULL OR participant_age BETWEEN 1 AND 120);
-
-ALTER TABLE public.nominations
-  ADD CONSTRAINT nominations_performance_mode_check
-  CHECK (performance_mode IS NULL OR performance_mode IN ('SOLO', 'GROUP'));
-
-ALTER TABLE public.nominations
-  ADD CONSTRAINT nominations_performance_type_check
-  CHECK (performance_type IS NULL OR performance_type IN ('DANCE', 'SINGING', 'DRAMA', 'RECITATION', 'INSTRUMENT'));
-
-ALTER TABLE public.nominations
-  ADD CONSTRAINT nominations_time_check
-  CHECK (
-    probable_time_minutes IS NULL
-    OR probable_time_minutes BETWEEN 1 AND CASE WHEN performance_mode = 'GROUP' THEN 20 ELSE 10 END
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'nominations_participant_age_check') THEN
+    ALTER TABLE public.nominations ADD CONSTRAINT nominations_participant_age_check
+      CHECK (participant_age IS NULL OR participant_age BETWEEN 1 AND 120);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'nominations_performance_mode_check') THEN
+    ALTER TABLE public.nominations ADD CONSTRAINT nominations_performance_mode_check
+      CHECK (performance_mode IS NULL OR performance_mode IN ('SOLO', 'GROUP'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'nominations_performance_type_check') THEN
+    ALTER TABLE public.nominations ADD CONSTRAINT nominations_performance_type_check
+      CHECK (performance_type IS NULL OR performance_type IN ('DANCE', 'SINGING', 'DRAMA', 'RECITATION', 'INSTRUMENT'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'nominations_time_check') THEN
+    ALTER TABLE public.nominations ADD CONSTRAINT nominations_time_check
+      CHECK (
+        probable_time_minutes IS NULL
+        OR probable_time_minutes BETWEEN 1 AND CASE WHEN performance_mode = 'GROUP' THEN 20 ELSE 10 END
+      );
+  END IF;
+END $$;
