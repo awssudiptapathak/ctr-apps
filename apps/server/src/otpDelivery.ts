@@ -70,6 +70,9 @@ export async function sendViaEmail(input: DeliverOtpInput): Promise<EmailSendRes
     port: Number(process.env.SMTP_PORT || 587),
     secure: process.env.SMTP_SECURE === 'true',
     auth: { user, pass },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
   });
 
   try {
@@ -139,6 +142,9 @@ export async function deliverOtp(
         result.sent ? null : result.error || null,
       ],
     ).catch(() => {});
+    if (!result.sent) {
+      throw new Error(result.error || 'MSG91 delivery failed');
+    }
     return;
   }
 
@@ -155,6 +161,9 @@ export async function deliverOtp(
         result.sent ? null : result.error || null,
       ],
     ).catch(() => {});
+    if (!result.sent) {
+      throw new Error(result.error || 'Email delivery failed');
+    }
     return;
   }
 
