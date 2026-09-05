@@ -56,6 +56,7 @@ export interface ProgramRecord {
   nominationOpenAt?: string | null;
   nominationCloseAt?: string | null;
   status: EventStatus;
+  category: 'COMPETITION' | 'PERFORMANCE';
   createdAt: string;
   updatedAt: string;
 }
@@ -138,6 +139,7 @@ export const samplePrograms: ProgramRecord[] = [
     nominationOpenAt: '2026-09-01T00:00:00+05:30',
     nominationCloseAt: '2026-09-20T23:59:00+05:30',
     status: 'PUBLISHED',
+    category: 'PERFORMANCE',
     createdAt: '2026-09-01T00:00:00+05:30',
     updatedAt: '2026-09-01T00:00:00+05:30',
   },
@@ -151,6 +153,7 @@ export const samplePrograms: ProgramRecord[] = [
     nominationOpenAt: '2026-09-02T00:00:00+05:30',
     nominationCloseAt: '2026-09-25T23:59:00+05:30',
     status: 'PUBLISHED',
+    category: 'COMPETITION',
     createdAt: '2026-09-02T00:00:00+05:30',
     updatedAt: '2026-09-02T00:00:00+05:30',
   },
@@ -170,7 +173,7 @@ export const sampleParticipantSlotConfirmations: ParticipantSlotConfirmation[] =
 ];
 
 export function isValidPhoneNumber(phone: string): boolean {
-  return /^\+?[1-9]\d{7,14}$/.test(phone.trim());
+  return /^\+91[6-9]\d{9}$/.test(phone.trim());
 }
 
 export function isValidFlatNumber(flatNo: string): boolean {

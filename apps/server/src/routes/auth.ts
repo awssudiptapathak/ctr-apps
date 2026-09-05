@@ -41,7 +41,7 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'fullName, email, phone and flatNo are required' });
   }
   if (!isValidPhoneNumber(phone)) {
-    return res.status(400).json({ error: 'Enter a valid mobile number in E.164 format.' });
+    return res.status(400).json({ error: 'Enter a valid Indian mobile number in +91XXXXXXXXXX format.' });
   }
   if (!emailPattern.test(String(email).trim())) {
     return res.status(400).json({ error: 'Enter a valid email address.' });
@@ -120,7 +120,7 @@ async function recordOtpDelivery(phone: string, code: string, purpose: string, e
 router.post('/otp/request', async (req, res) => {
   const { phone, purpose, email } = req.body || {};
   if (!phone || !isValidPhoneNumber(phone)) {
-    return res.status(400).json({ error: 'Enter a valid mobile number in E.164 format.' });
+    return res.status(400).json({ error: 'Enter a valid Indian mobile number in +91XXXXXXXXXX format.' });
   }
   const otpPurpose = purpose === 'verify_phone' ? 'verify_phone' : 'password_reset';
 
