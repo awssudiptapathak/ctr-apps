@@ -24,7 +24,7 @@ BEGIN
       SELECT 1
       FROM public.events e
       WHERE e.id = NEW.event_id
-        AND e.start_at > COALESCE(NEW.nomination_close_at, e.start_at)
+        AND COALESCE(NEW.nomination_close_at, e.start_at) > e.start_at
     ) THEN
       RAISE EXCEPTION 'program nomination window must end before the event starts';
     END IF;
