@@ -50,6 +50,43 @@ router.post('/recover-super-admin', async (req, res) => {
   return res.json({ ok: true, email: row.email });
 });
 
+router.post('/recover-super-admin/restore', async (req, res) => {
+  const configuredToken = process.env.SUPER_ADMIN_RECOVERY_TOKEN;
+  const suppliedToken = req.header('x-super-admin-recovery-token');
+  const fullName = String(req.body?.fullName || '').trim();
+  const phone = String(req.body?.phone || '').trim();
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const password = String(req.body?.password || '');
+
+  if (!configuredToken || !suppliedToken || !emailPattern.test(email)
+    || !fullName || !isValidPhoneNumber(phone) || password.length < 8) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const configured = Buffer.from(configuredToken);
+  const supplied = Buffer.from(suppliedToken);
+  if (configured.length !== supplied.length || !timingSafeEqual(configured, supplied)) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const existing = await queryOne<{ id: string }>(
+    'SELECT id FROM public.profiles WHERE lower(email) = $1 OR phone = $2 LIMIT 1',
+    [email, phone],
+  );
+  if (existing) {
+    return res.status(409).json({ error: 'An account with this email or phone already exists.' });
+  }
+
+  const row = await queryOne<{ id: string; email: string }>(
+    `INSERT INTO public.profiles
+      (full_name, phone, email, role, status, onboarding_completed, password_hash)
+     VALUES ($1, $2, $3, 'SUPER_ADMIN', 'ACTIVE', true, $4)
+     RETURNING id, email`,
+    [fullName, phone, email, hashPassword(password)],
+  );
+  return res.status(201).json({ ok: true, email: row.email });
+});
+
 function toAuthUser(row: any): AuthUser {
   return {
     id: row.id,
