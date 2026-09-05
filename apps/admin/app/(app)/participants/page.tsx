@@ -57,8 +57,9 @@ export default function ParticipantsPage() {
   const exportCsv = () => {
     const rows = [
       ['Index', 'Name', 'Age', 'Block', 'Contact number', 'Performance', 'Type', 'Probable time (minutes)', 'Brief summary'],
-      ...participants.map((p, index) => [index + 1, p.participantName, p.participantAge, p.block, p.phone, p.performanceMode, p.performanceType, p.probableTimeMinutes, p.performanceSummary]),
+      ...participants.map((p, index) => [index + 1, p.participantName, p.participantAge, p.block, p.phone, p.performanceMode, p.performanceType, p.probableTimeMinutes, p.performanceSummary, p.photoData || '']),
     ];
+    rows[0].push('Photo (data URL)');
     const csv = rows.map((row) => row.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');
@@ -84,9 +85,9 @@ export default function ParticipantsPage() {
           <label style={labelStyle}>Program<select value={programId} onChange={(e) => setProgramId(e.target.value)} style={fieldStyle}>{eventPrograms.map((program) => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label>
         </section>
         {error ? <div style={{ color: '#fecaca', margin: '1rem 0' }}>{error}</div> : null}
-        <section style={{ ...cardStyle, overflowX: 'auto', padding: 0 }}>
+        <section className="participant-table-card" style={{ ...cardStyle, overflowX: 'auto', padding: 0 }}>
           {participants.length === 0 ? <div style={{ padding: '1.5rem', textAlign: 'center', color: '#f6e7c0' }}>No participants have submitted this program.</div> : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200 }}>
+            <table className="participant-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200 }}>
               <thead><tr>{['#', 'Name', 'Age', 'Block', 'Contact number', 'Performance', 'Type', 'Time', 'Brief summary', 'Photo'].map((heading) => <th key={heading} style={thStyle}>{heading}</th>)}</tr></thead>
               <tbody>{participants.map((p, index) => <tr key={p.id}>
                 <td style={tdStyle}>{index + 1}</td><td style={tdStyle}>{p.participantName}</td><td style={tdStyle}>{p.participantAge}</td>
@@ -98,6 +99,29 @@ export default function ParticipantsPage() {
           )}
         </section>
       </div>
+      <style>{`
+        @media print {
+          @page { size: landscape; margin: 8mm; }
+          body { background: #fff !important; }
+          .participant-table-card { display: block !important; overflow: visible !important; border: 0 !important; margin: 0 !important; background: #fff !important; }
+          .participant-table-card table { width: 100% !important; min-width: 0 !important; table-layout: fixed; color: #111 !important; font-size: 7px; }
+          .participant-table-card th, .participant-table-card td { padding: 3px !important; color: #111 !important; border: 1px solid #999 !important; overflow-wrap: anywhere; }
+          .participant-table-card th:nth-child(1) { width: 3%; }
+          .participant-table-card th:nth-child(2) { width: 9%; }
+          .participant-table-card th:nth-child(3) { width: 4%; }
+          .participant-table-card th:nth-child(4) { width: 7%; }
+          .participant-table-card th:nth-child(5) { width: 10%; }
+          .participant-table-card th:nth-child(6), .participant-table-card th:nth-child(7) { width: 8%; }
+          .participant-table-card th:nth-child(8) { width: 6%; }
+          .participant-table-card th:nth-child(9) { width: 35%; }
+          .participant-table-card th:nth-child(10) { width: 10%; }
+          .participant-table-card img { width: 42px !important; height: 42px !important; }
+          .participant-table thead { display: table-header-group; }
+          .participant-table tr { break-inside: avoid; }
+          main > div > header, main > div > section:not(.participant-table-card), main > div > div { display: none !important; }
+          main { padding: 0 !important; background: #fff !important; color: #111 !important; }
+        }
+      `}</style>
     </main>
   );
 }
