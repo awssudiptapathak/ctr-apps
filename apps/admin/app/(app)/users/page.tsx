@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, getAdminUser } from '@/lib/api';
+import { api, getAdminUser, setAdminUser } from '@/lib/api';
 
 interface User {
   id: string;
@@ -22,7 +22,7 @@ const roleBadge: Record<string, string> = {
 };
 
 export default function UsersPage() {
-  const user = getAdminUser();
+  const [user, setUser] = useState(getAdminUser);
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +33,15 @@ export default function UsersPage() {
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get<{ user: User }>('/auth/me')
+      .then((data) => {
+        setUser(data.user);
+        setAdminUser(data.user);
+      })
+      .catch((error: any) => setError(error.message || 'Unable to refresh your admin permissions.'));
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
