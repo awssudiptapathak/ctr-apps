@@ -43,7 +43,7 @@ export default function AdminNav() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <img src="/images/icon.png" alt="CTR" style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover' }} />
           <div>
-            <div style={{ fontWeight: 800, letterSpacing: 0.8, color: '#f9d27a', fontSize: 16, lineHeight: 1.1 }}>CTR-CMS</div>
+            <div style={{ fontWeight: 800, letterSpacing: 0.8, color: '#f9d27a', fontSize: 16, lineHeight: 1.1 }}>BCTCA</div>
             <div style={{ fontSize: 10, letterSpacing: 1, color: '#f4d7a0', textTransform: 'uppercase' }}>Admin console</div>
           </div>
         </div>

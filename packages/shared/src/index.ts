@@ -173,6 +173,10 @@ export function isValidPhoneNumber(phone: string): boolean {
   return /^\+?[1-9]\d{7,14}$/.test(phone.trim());
 }
 
+export function isValidFlatNumber(flatNo: string): boolean {
+  return /^[1-6][A-L]\/B[1-6]$/i.test(flatNo.trim());
+}
+
 export function isDuplicateActiveNomination(status: string): boolean {
   return ['PENDING', 'APPROVED', 'WAITLISTED', 'SLOT_ALLOCATED', 'COMPLETED'].includes(status);
 }
