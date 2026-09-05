@@ -240,24 +240,32 @@ export default function UsersPage() {
                     <span style={{ background: u.status === 'ACTIVE' ? '#166534' : '#991b1b', color: '#fff', borderRadius: 999, padding: '0.25rem 0.7rem', fontWeight: 700, fontSize: 11 }}>{u.status}</span>
                     {isSuperAdmin && u.id !== user?.id && (
                       <>
-                        <select
-                          value={u.role}
-                          disabled={busyId === u.id}
-                          onChange={(e) => changeRole(u.id, e.target.value as User['role'])}
-                          style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(249,210,122,0.3)', borderRadius: 8, padding: '0.3rem 0.5rem', color: '#fff7ea', fontSize: 12, cursor: 'pointer' }}
-                        >
-                          {roles.map((r) => <option key={r} value={r}>{r}</option>)}
-                        </select>
-                        <select
-                          value={u.status}
-                          disabled={busyId === u.id}
-                          onChange={(e) => changeStatus(u.id, e.target.value)}
-                          style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(249,210,122,0.3)', borderRadius: 8, padding: '0.3rem 0.5rem', color: '#fff7ea', fontSize: 12, cursor: 'pointer' }}
-                        >
-                          <option value="ACTIVE">ACTIVE</option>
-                          <option value="INACTIVE">INACTIVE</option>
-                          <option value="BLOCKED">BLOCKED</option>
-                        </select>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#f4d7a0', fontSize: 12, fontWeight: 700 }}>
+                          Role
+                          <select
+                            aria-label={`Role for ${u.fullName}`}
+                            value={u.role}
+                            disabled={busyId === u.id}
+                            onChange={(e) => changeRole(u.id, e.target.value as User['role'])}
+                            style={{ background: '#2a1719', border: '1px solid rgba(249,210,122,0.5)', borderRadius: 8, padding: '0.3rem 0.5rem', color: '#fff7ea', fontSize: 12, cursor: 'pointer' }}
+                          >
+                            {roles.map((r) => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#f4d7a0', fontSize: 12, fontWeight: 700 }}>
+                          Status
+                          <select
+                            aria-label={`Status for ${u.fullName}`}
+                            value={u.status}
+                            disabled={busyId === u.id}
+                            onChange={(e) => changeStatus(u.id, e.target.value)}
+                            style={{ background: '#2a1719', border: '1px solid rgba(249,210,122,0.5)', borderRadius: 8, padding: '0.3rem 0.5rem', color: '#fff7ea', fontSize: 12, cursor: 'pointer' }}
+                          >
+                            <option value="ACTIVE">ACTIVE</option>
+                            <option value="INACTIVE">INACTIVE</option>
+                            <option value="BLOCKED">BLOCKED</option>
+                          </select>
+                        </label>
                         <button
                           type="button"
                           disabled={busyId === u.id}
