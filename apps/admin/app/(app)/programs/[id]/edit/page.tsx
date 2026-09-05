@@ -47,6 +47,7 @@ export default function EditProgramPage() {
         nominationOpenAt: program.nominationOpenAt,
         nominationCloseAt: program.nominationCloseAt,
         status: program.status,
+        category: program.category,
       });
       router.push('/events?status=success&message=Program updated successfully.');
     } catch (e: any) {
@@ -111,6 +112,13 @@ export default function EditProgramPage() {
               <input type="number" min={1} value={program.maxParticipants} onChange={(input) => updateField('maxParticipants', Number(input.target.value))} style={fieldStyle} />
             </label>
 
+            <label style={{ display: 'grid', gap: '0.45rem', color: '#f6e7c0' }}>
+              <span>Category</span>
+              <select value={program.category} onChange={(input) => updateField('category', input.target.value)} style={fieldStyle}>
+                <option value="PERFORMANCE">Performance</option>
+                <option value="COMPETITION">Competition</option>
+              </select>
+            </label>
             <label style={{ display: 'grid', gap: '0.45rem', color: '#f6e7c0' }}>
               <span>Status</span>
               <select value={program.status} onChange={(input) => updateField('status', input.target.value)} style={fieldStyle}>

@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, Image, ImageBackground, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { isValidPhoneNumber, isValidFlatNumber, checkNominationEligibility } from '@ctr-cms/shared';
 import { api, setAuthToken } from './src/api';
@@ -80,6 +80,18 @@ export default function App() {
   useEffect(() => {
     if (screen !== 'home') return;
     loadHome();
+
+    const refreshTimer = setInterval(loadHome, 30000);
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        loadHome();
+      }
+    });
+
+    return () => {
+      clearInterval(refreshTimer);
+      appStateSubscription.remove();
+    };
   }, [screen, loadHome]);
 
   const handleLogin = async () => {
@@ -108,7 +120,7 @@ export default function App() {
 
   const handleSendOtp = async () => {
     if (!isPhoneValid) {
-      setError('Please enter a valid mobile number before requesting OTP.');
+      setError('Enter an Indian mobile number in +91XXXXXXXXXX format.');
       return;
     }
     setError('');
@@ -194,7 +206,7 @@ export default function App() {
       return;
     }
     if (!isPhoneValid) {
-      setError('Enter a valid resident phone number.');
+      setError('Enter an Indian mobile number in +91XXXXXXXXXX format.');
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -327,7 +339,11 @@ export default function App() {
   if (screen === 'home') {
     return (
       <ImageBackground source={require('./assets/hero-durga-puja.jpg')} style={styles.backgroundImage} resizeMode="cover">
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.content}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={loadHome} tintColor="#f9d27a" />}
+        >
           <View style={styles.headerRow}>
             <View>
               <Text style={styles.brand}>CTR-CMS</Text>
@@ -549,7 +565,7 @@ export default function App() {
             ) : (
               <>
                 <Text style={styles.title}>Verify OTP</Text>
-                <Text style={styles.subtitle}>We sent a 6-digit code to {phone}</Text>
+                <Text style={styles.subtitle}>We sent a 6-digit OTP to your email address.</Text>
                 {devOtp ? <Text style={styles.devHint}>Dev code: {devOtp}</Text> : null}
                 <TextInput
                   value={otp}
@@ -581,10 +597,10 @@ export default function App() {
         <ScrollView style={styles.authContainerScroll} contentContainerStyle={styles.authContent}>
           <View style={styles.authCard}>
             <Text style={styles.title}>Resident onboarding</Text>
-            <Text style={styles.subtitle}>We&#39;ll email you a code to verify your phone</Text>
+            <Text style={styles.subtitle}>We&#39;ll send a 6-digit OTP to your email address</Text>
 
             <TextInput value={fullName} onChangeText={setFullName} style={styles.input} placeholder="Full name" />
-            <TextInput value={phone} onChangeText={setPhone} style={styles.input} placeholder="Phone number" keyboardType="phone-pad" />
+            <TextInput value={phone} onChangeText={setPhone} style={styles.input} placeholder="Indian mobile (+91XXXXXXXXXX)" keyboardType="phone-pad" />
             <TextInput value={flatNo} onChangeText={setFlatNo} style={styles.input} placeholder="Flat / Block (e.g. 1A/B1)" />
             <TextInput value={email} onChangeText={setEmail} style={styles.input} placeholder="Email (required for verification)" keyboardType="email-address" />
             <TextInput

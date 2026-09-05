@@ -17,6 +17,11 @@ type Participant = {
   block: string | null;
   flatNo: string | null;
   phone: string;
+  category: 'COMPETITION' | 'PERFORMANCE';
+  judgeScore: number | null;
+  judge1: number | null;
+  judge2: number | null;
+  judge3: number | null;
 };
 
 export default function ParticipantsPage() {
@@ -55,11 +60,15 @@ export default function ParticipantsPage() {
   }, [eventId, programId]);
 
   const exportCsv = () => {
+    const headers = ['Index', 'Name', 'Age', 'Block', 'Contact number', 'Performance', 'Type', 'Probable time (minutes)', 'Brief summary', 'Photo (data URL)'];
+    if (participants[0]?.category === 'COMPETITION') headers.push('Judge score', 'Judge 1', 'Judge 2', 'Judge 3');
     const rows = [
-      ['Index', 'Name', 'Age', 'Block', 'Contact number', 'Performance', 'Type', 'Probable time (minutes)', 'Brief summary'],
-      ...participants.map((p, index) => [index + 1, p.participantName, p.participantAge, p.block, p.phone, p.performanceMode, p.performanceType, p.probableTimeMinutes, p.performanceSummary, p.photoData || '']),
+      headers,
+      ...participants.map((p, index) => {
+        const row = [index + 1, p.participantName, p.participantAge, p.block, p.phone, p.performanceMode, p.performanceType, p.probableTimeMinutes, p.performanceSummary, p.photoData || ''];
+        return p.category === 'COMPETITION' ? [...row, p.judgeScore ?? '', p.judge1 ?? '', p.judge2 ?? '', p.judge3 ?? ''] : row;
+      }),
     ];
-    rows[0].push('Photo (data URL)');
     const csv = rows.map((row) => row.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');

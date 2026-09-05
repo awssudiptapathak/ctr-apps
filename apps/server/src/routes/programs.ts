@@ -15,6 +15,7 @@ function mapProgram(row: any) {
     nominationOpenAt: row.nomination_open_at,
     nominationCloseAt: row.nomination_close_at,
     status: row.status,
+    category: row.category || 'PERFORMANCE',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -36,15 +37,15 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   try {
-    const { eventId, name, description, rules, maxParticipants, nominationOpenAt, nominationCloseAt, status } = req.body || {};
+    const { eventId, name, description, rules, maxParticipants, nominationOpenAt, nominationCloseAt, status, category } = req.body || {};
     if (!eventId || !name) {
       return res.status(400).json({ error: 'eventId and name are required' });
     }
     const row = await queryOne<any>(
-      `INSERT INTO public.programs (event_id, name, description, rules, max_participants, nomination_open_at, nomination_close_at, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO public.programs (event_id, name, description, rules, max_participants, nomination_open_at, nomination_close_at, status, category)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [eventId, name, description || null, rules || null, maxParticipants ?? 1, nominationOpenAt || null, nominationCloseAt || null, status || 'DRAFT'],
+      [eventId, name, description, rules || null, maxParticipants ?? 1, nominationOpenAt || null, nominationCloseAt || null, status || 'DRAFT', category === 'COMPETITION' ? 'COMPETITION' : 'PERFORMANCE'],
     );
     return res.status(201).json({ program: mapProgram(row) });
   } catch (error) {
@@ -67,8 +68,9 @@ router.put('/:id', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), async (req,
        nomination_open_at = COALESCE($7, nomination_open_at),
        nomination_close_at = COALESCE($8, nomination_close_at),
        status = COALESCE($9, status)
+      ,category = COALESCE($10, category)
      WHERE id = $1 RETURNING *`,
-    [req.params.id, b.eventId, b.name, b.description, b.rules, b.maxParticipants, b.nominationOpenAt, b.nominationCloseAt, b.status],
+    [req.params.id, b.eventId, b.name, b.description, b.rules, b.maxParticipants, b.nominationOpenAt, b.nominationCloseAt, b.status, b.category === 'COMPETITION' ? 'COMPETITION' : b.category === 'PERFORMANCE' ? 'PERFORMANCE' : null],
   );
   return res.json({ program: mapProgram(row) });
 });

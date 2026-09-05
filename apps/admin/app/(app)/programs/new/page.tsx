@@ -19,6 +19,7 @@ export default function NewProgramPage() {
     nominationOpenAt: '2026-09-10T00:00:00+05:30',
     nominationCloseAt: '2026-09-18T23:59:00+05:30',
     status: 'PUBLISHED',
+    category: 'PERFORMANCE' as 'COMPETITION' | 'PERFORMANCE',
   });
 
   useEffect(() => {
@@ -108,6 +109,13 @@ export default function NewProgramPage() {
               <input type="number" min={1} value={form.maxParticipants} onChange={(event) => updateField('maxParticipants', Number(event.target.value))} style={fieldStyle} />
             </label>
 
+            <label style={{ display: 'grid', gap: '0.45rem', color: '#f6e7c0' }}>
+              <span>Category</span>
+              <select value={form.category} onChange={(event) => updateField('category', event.target.value)} style={fieldStyle}>
+                <option value="PERFORMANCE">Performance</option>
+                <option value="COMPETITION">Competition</option>
+              </select>
+            </label>
             <label style={{ display: 'grid', gap: '0.45rem', color: '#f6e7c0' }}>
               <span>Status</span>
               <select value={form.status} onChange={(event) => updateField('status', event.target.value)} style={fieldStyle}>

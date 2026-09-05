@@ -9,6 +9,7 @@ const MIGRATION_FILES = [
   '004_fix_program_window_validation.sql',
   '005_add_otp_codes.sql',
   '006_participant_details.sql',
+  '007_program_categories_and_judges.sql',
 ];
 
 const SEED_FILE = 'seed.sql';

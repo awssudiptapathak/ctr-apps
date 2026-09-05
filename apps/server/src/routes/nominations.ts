@@ -31,6 +31,10 @@ function mapNomination(row: any) {
     probableTimeMinutes: row.probable_time_minutes,
     performanceSummary: row.performance_summary,
     photoData: row.photo_data,
+    judgeScore: row.judge_score,
+    judge1: row.judge_1,
+    judge2: row.judge_2,
+    judge3: row.judge_3,
     block: row.flat_no ? String(row.flat_no).split('/')[1] : null,
     flatNo: row.flat_no ? String(row.flat_no).split('/')[0] : null,
     status: row.status,
@@ -138,7 +142,7 @@ router.get('/participants', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), as
   if (!eventId || !programId) return res.status(400).json({ error: 'eventId and programId are required' });
   const rows = await query<any>(
     `SELECT n.*, p.full_name AS resident_name, p.phone, p.email, p.flat_no,
-            pr.name AS program_name, e.title AS event_title
+            pr.name AS program_name, pr.category, e.title AS event_title
        FROM public.nominations n
        JOIN public.profiles p ON p.id = n.user_id
        JOIN public.programs pr ON pr.id = n.program_id
@@ -153,6 +157,7 @@ router.get('/participants', requireAuth, requireRole('ADMIN', 'SUPER_ADMIN'), as
     phone: row.phone,
     email: row.email,
     programName: row.program_name,
+    category: row.category,
     eventTitle: row.event_title,
   })) });
 });
