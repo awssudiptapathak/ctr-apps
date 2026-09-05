@@ -16,6 +16,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.replace('/login');
       return;
     }
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      router.replace('/login?error=access-denied');
+      return;
+    }
     setChecked(true);
   }, [router]);
 

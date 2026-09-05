@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChangeEvent, FormEvent, useState } from 'react';
-import { api, setAdminToken, setAdminUser } from '../../lib/api';
+import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
+import { api, clearAdminAuth, setAdminToken, setAdminUser } from '../../lib/api';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -11,6 +11,12 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('Admin@123');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('error') === 'access-denied') {
+      setError('Access denied. Only Admin and Super Admin accounts can access this portal.');
+    }
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -33,6 +39,11 @@ export default function AdminLoginPage() {
     setLoading(true);
     try {
       const data = await api.post<{ token: string; user: any }>('/auth/login', { email, password });
+      if (data.user.role !== 'ADMIN' && data.user.role !== 'SUPER_ADMIN') {
+        clearAdminAuth();
+        setError('Access denied. Only Admin and Super Admin accounts can access this portal.');
+        return;
+      }
       setAdminToken(data.token);
       setAdminUser(data.user);
       router.push('/dashboard');
