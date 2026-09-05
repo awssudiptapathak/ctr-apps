@@ -84,6 +84,9 @@ router.post('/recover-super-admin/restore', async (req, res) => {
      RETURNING id, email`,
     [fullName, phone, email, hashPassword(password)],
   );
+  if (!row) {
+    return res.status(500).json({ error: 'Unable to restore account.' });
+  }
   return res.status(201).json({ ok: true, email: row.email });
 });
 
